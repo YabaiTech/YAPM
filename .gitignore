@@ -1,5 +1,14 @@
+# Ignore Intellij Idea specific files
+.idea
+
+# Ignore Echlipse LSP (JDTLS) specific files
+.settings
+.project
+.classpath
+
 # Ignore Gradle project-specific cache directory
 .gradle
 
 # Ignore Gradle build output directory
 build
+bin
