@@ -38,7 +38,7 @@ public class CryptoUtils {
     return new String(decrypted);
   }
 
-  private static SecretKeySpec deriveKeyFromPasswd(String passwd, byte[] salt) throws Exception {
+  public static SecretKeySpec deriveKeyFromPasswd(String passwd, byte[] salt) throws Exception {
     SecretKeyFactory factory = SecretKeyFactory.getInstance(Constants.KEY_DERIVATION_FUNCTION);
     KeySpec spec = new PBEKeySpec(passwd.toCharArray(), salt, Constants.ITERATIONS, Constants.KEY_LENGTH);
     SecretKey res = factory.generateSecret(spec);
@@ -46,7 +46,7 @@ public class CryptoUtils {
     return new SecretKeySpec(res.getEncoded(), "AES");
   }
 
-  private static byte[] generateRandomBytes(int length) {
+  public static byte[] generateRandomBytes(int length) {
     byte[] res = new byte[length];
     new SecureRandom().nextBytes(res);
 
