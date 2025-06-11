@@ -15,7 +15,7 @@ class CryptoUtilsTest {
 
       System.out.println(plaintext);
       System.out.println(decrypted);
-      assertEquals(plaintext, decrypted);
+      assertEquals(plaintext, decrypted, "Plaintext password should be the same before and after encryption.");
     } catch (Exception e) {
       e.printStackTrace();
     }
