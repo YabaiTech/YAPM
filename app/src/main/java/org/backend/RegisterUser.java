@@ -39,13 +39,13 @@ class RegisterUser {
   }
 
   public BackendError setPassword(String pwd) {
-    if (isValidPassword(pwd)) {
+    BackendError pwdValidity = isValidPassword(pwd);
+    if (pwdValidity == null) {
       this.plaintextPassword = pwd;
       return null;
     }
 
-    return new BackendError(BackendError.AllErrorCodes.InvalidPassword, "Password doesn't fulfill the criterias",
-        "setPassword");
+    return pwdValidity;
   }
 
   /*
