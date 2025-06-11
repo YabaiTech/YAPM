@@ -1,5 +1,6 @@
 package org.YAPM;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -16,12 +17,15 @@ class VaultManagerTest {
 
   @TempDir
   Path tmpDir;
+  private String dbPath;
+
+  @BeforeEach
+  public void setUp() {
+    dbPath = tmpDir.resolve("testVault.db").toString();
+  }
 
   @Test
   void testCreateAndOpenEmptyVault() throws Exception {
-    Path dbFile = tmpDir.resolve("testVault.db");
-    String dbPath = dbFile.toString();
-
     VaultManager.createVault(dbPath, MASTER_PASSWD);
     List<Entry> entries = VaultManager.openVault(dbPath, MASTER_PASSWD);
 
@@ -31,8 +35,6 @@ class VaultManagerTest {
 
   @Test
   void testOpenVaultWithWrongPasswordThrows() throws Exception {
-    Path dbFile = tmpDir.resolve("secureVault.db");
-    String dbPath = dbFile.toString();
     VaultManager.createVault(dbPath, MASTER_PASSWD);
 
     assertThrows(BadPaddingException.class, () -> {
@@ -49,9 +51,6 @@ class VaultManagerTest {
 
   @Test
   void testOpenVaultWithEmptyPasswordThrows() {
-    Path dbFile = tmpDir.resolve("vault.db");
-    String dbPath = dbFile.toString();
-
     assertDoesNotThrow(() -> VaultManager.createVault(dbPath, MASTER_PASSWD),
         "Creating vault with proper parameters should not throw any error.");
 
