@@ -1,7 +1,8 @@
+
 package org.YAPM;
 
+import com.formdev.flatlaf.intellijthemes.FlatNordIJTheme;
 import javax.swing.*;
-        import com.formdev.flatlaf.intellijthemes.FlatNordIJTheme;
 
 public class App {
     public String getGreeting() {
@@ -10,13 +11,13 @@ public class App {
 
     public static void main(String[] args) {
         try {
-            FlatNordIJTheme.setup(); // Apply the Nord theme
+            FlatNordIJTheme.setup();
         } catch (Exception e) {
-            System.err.println("Failed to apply theme.");
+            System.err.println("Failed to apply theme");
         }
 
         SwingUtilities.invokeLater(() -> {
-            new LoginUI().setVisible(true); // Show login UI by default
+            new MainUI().setVisible(true);
         });
     }
 }
