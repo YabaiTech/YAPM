@@ -72,28 +72,7 @@ public class VaultManager {
     try (Connection connection = DriverManager.getConnection(url)) {
       connection.setAutoCommit(false);
 
-      String saltB64, verPayload, encryptedMasterPasswd, ivB64;
-      try (Statement statement = connection.createStatement();
-          ResultSet resultSet = statement.executeQuery("SELECT salt, verification FROM metadata LIMIT 1")) {
-        if (!resultSet.next()) {
-          throw new IllegalStateException("[VaultManager] ERROR: metadata table is either missing or corrupted.");
-        }
-
-        saltB64 = resultSet.getString("salt");
-        verPayload = resultSet.getString("verification");
-      }
-
-      String[] segments = verPayload.split(":");
-      if (segments.length != 2) {
-        throw new IllegalStateException("[VaultManager] ERROR: bad verification format.");
-      }
-
-      encryptedMasterPasswd = segments[0];
-      ivB64 = segments[1];
-      String decrypted = CryptoUtils.decrypt(new EncryptedData(encryptedMasterPasswd, ivB64, saltB64), masterPasswd);
-      if (!decrypted.equals(VERIFICATION_TEXT)) {
-        throw new SecurityException("[VaultManager] ERROR: wrong master password.");
-      }
+      String saltB64 = Base64.getEncoder().encodeToString(verifyMasterPasswd(connection, masterPasswd));
 
       List<Entry> entries = new ArrayList<>();
       try (PreparedStatement preparedStatement = connection
@@ -134,17 +113,8 @@ public class VaultManager {
     try (Connection connection = DriverManager.getConnection(url)) {
       connection.setAutoCommit(false);
 
-      String saltB64;
-      try (Statement statement = connection.createStatement();
-          ResultSet resultSet = statement.executeQuery("SELECT salt, verification FROM metadata LIMIT 1")) {
-        if (!resultSet.next()) {
-          throw new IllegalStateException("[VaultManager] ERROR: metadata table is either missing or corrupted.");
-        }
+      byte[] salt = verifyMasterPasswd(connection, masterPasswd);
 
-        saltB64 = resultSet.getString("salt");
-      }
-
-      byte[] salt = Base64.getDecoder().decode(saltB64);
       EncryptedData encrypted = CryptoUtils.encrypt(plainPasswdField, masterPasswd, salt);
       String cipherB64 = encrypted.getCipherText();
       String ivB64 = encrypted.getIV();
@@ -167,7 +137,8 @@ public class VaultManager {
     }
   }
 
-  public static void deleteEntry(String dbPath, String masterPasswd, int entryID) throws IllegalArgumentException {
+  public static void deleteEntry(String dbPath, String masterPasswd, int entryID)
+      throws Exception, IllegalArgumentException {
     if (dbPath.isEmpty() || masterPasswd.isEmpty()) {
       throw new IllegalArgumentException("[VaultManager] ERROR: db path or master password is empty.");
     }
@@ -175,6 +146,7 @@ public class VaultManager {
     String url = JDBC_PREFIX + dbPath;
     try (Connection connection = DriverManager.getConnection(url)) {
       connection.setAutoCommit(false);
+      verifyMasterPasswd(connection, masterPasswd);
 
       try (PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM entries WHERE id = ?")) {
         preparedStatement.setInt(1, entryID);
@@ -189,5 +161,39 @@ public class VaultManager {
       System.out.println("[VaultManager] ERROR: ");
       e.printStackTrace();
     }
+  }
+
+  private static byte[] verifyMasterPasswd(Connection connection, String masterPasswd) throws Exception {
+    String saltB64, verPayload;
+
+    try (Statement statement = connection.createStatement();
+        ResultSet resultSet = statement.executeQuery("SELECT salt, verification FROM metadata LIMIT 1")) {
+      if (!resultSet.next()) {
+        throw new IllegalStateException("[VaultManager] ERROR: metadata table is missing or corrupted.");
+      }
+
+      saltB64 = resultSet.getString("salt");
+      verPayload = resultSet.getString("verification");
+    } catch (SQLException e) {
+      System.out.println("[VaultManager] ERROR: ");
+      e.printStackTrace();
+      return null;
+    }
+
+    String[] segments = verPayload.split(":");
+    if (segments.length != 2) {
+      throw new IllegalStateException("[VaultManager] ERROR: bad verification format.");
+    }
+
+    String cipherMasterPasswd = segments[0];
+    String ivB64 = segments[1];
+
+    EncryptedData verificationData = new EncryptedData(cipherMasterPasswd, ivB64, saltB64);
+    String decrypted = CryptoUtils.decrypt(verificationData, masterPasswd);
+    if (!decrypted.equals(VERIFICATION_TEXT)) {
+      throw new SecurityException("[VaultManager] ERROR: incorrect master password.");
+    }
+
+    return Base64.getDecoder().decode(saltB64);
   }
 }
