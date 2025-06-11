@@ -25,6 +25,18 @@ public class CryptoUtils {
         Base64.getEncoder().encodeToString(salt));
   }
 
+  public static EncryptedData encrypt(String plaintext, String passwd, byte[] salt) throws Exception {
+    SecretKeySpec key = deriveKeyFromPasswd(passwd, salt);
+
+    Cipher cipher = Cipher.getInstance(Constants.ENCRYPTION_ALGO);
+    byte[] iv = generateRandomBytes(Constants.IV_LENGTH);
+    cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
+
+    byte[] encrypted = cipher.doFinal(plaintext.getBytes());
+    return new EncryptedData(Base64.getEncoder().encodeToString(encrypted), Base64.getEncoder().encodeToString(iv),
+        Base64.getEncoder().encodeToString(salt));
+  }
+
   public static String decrypt(EncryptedData data, String passwd) throws Exception {
     byte[] cipherText = Base64.getDecoder().decode(data.getCipherText());
     byte[] iv = Base64.getDecoder().decode(data.getIV());

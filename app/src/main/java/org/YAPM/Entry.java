@@ -10,4 +10,16 @@ public class Entry {
     this.username = username;
     this.passwd = passwd;
   }
+
+  public String getURL() {
+    return this.url;
+  }
+
+  public String getUsername() {
+    return this.username;
+  }
+
+  public String getPasswd() {
+    return this.passwd;
+  }
 }

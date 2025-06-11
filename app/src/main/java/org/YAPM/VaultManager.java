@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 public class VaultManager {
@@ -53,6 +54,7 @@ public class VaultManager {
 
       connection.commit();
     } catch (SQLException e) {
+      System.out.println("[VaultManager] ERROR: ");
       e.printStackTrace();
     }
   }
@@ -117,6 +119,74 @@ public class VaultManager {
       System.out.println("[VaultManager] ERROR: ");
       e.printStackTrace();
       return null;
+    }
+  }
+
+  public static void addEntry(String dbPath, String masterPasswd, String urlField, String usernameField,
+      String plainPasswdField) throws Exception {
+    if (dbPath.isEmpty() || masterPasswd.isEmpty() || urlField.isEmpty() || usernameField.isEmpty()
+        || plainPasswdField.isEmpty()) {
+      throw new IllegalArgumentException(
+          "[VaultManager] ERROR: db path, master password, URL field, username, or the password field is empty.");
+    }
+
+    String url = JDBC_PREFIX + dbPath;
+    try (Connection connection = DriverManager.getConnection(url)) {
+      connection.setAutoCommit(false);
+
+      String saltB64;
+      try (Statement statement = connection.createStatement();
+          ResultSet resultSet = statement.executeQuery("SELECT salt, verification FROM metadata LIMIT 1")) {
+        if (!resultSet.next()) {
+          throw new IllegalStateException("[VaultManager] ERROR: metadata table is either missing or corrupted.");
+        }
+
+        saltB64 = resultSet.getString("salt");
+      }
+
+      byte[] salt = Base64.getDecoder().decode(saltB64);
+      EncryptedData encrypted = CryptoUtils.encrypt(plainPasswdField, masterPasswd, salt);
+      String cipherB64 = encrypted.getCipherText();
+      String ivB64 = encrypted.getIV();
+
+      try (PreparedStatement preparedStatement = connection
+          .prepareStatement("INSERT INTO entries(url, username, password, iv) VALUES(?,?,?,?)")) {
+        preparedStatement.setString(1, urlField);
+        preparedStatement.setString(2, usernameField);
+        preparedStatement.setString(3, cipherB64);
+        preparedStatement.setString(4, ivB64);
+
+        preparedStatement.executeUpdate();
+      }
+
+      connection.commit();
+    } catch (SQLException e) {
+      System.out.println("[VaultManager] ERROR: ");
+      e.printStackTrace();
+    }
+  }
+
+  public static void deleteEntry(String dbPath, String masterPasswd, int entryID) throws IllegalArgumentException {
+    if (dbPath.isEmpty() || masterPasswd.isEmpty()) {
+      throw new IllegalArgumentException("[VaultManager] ERROR: db path or master password is empty.");
+    }
+
+    String url = JDBC_PREFIX + dbPath;
+    try (Connection connection = DriverManager.getConnection(url)) {
+      connection.setAutoCommit(false);
+
+      try (PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM entries WHERE id = ?")) {
+        preparedStatement.setInt(1, entryID);
+        int affected = preparedStatement.executeUpdate();
+        if (affected == 0) {
+          throw new IllegalArgumentException("No entry found with ID: " + entryID);
+        }
+      }
+
+      connection.commit();
+    } catch (SQLException e) {
+      System.out.println("[VaultManager] ERROR: ");
+      e.printStackTrace();
     }
   }
 }
