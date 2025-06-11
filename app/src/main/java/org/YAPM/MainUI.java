@@ -17,11 +17,11 @@ public class MainUI extends JFrame {
         cardPanel = new JPanel(cardLayout);
 
         LoginPanel loginPanel = new LoginPanel(this);
-//        RegisterPanel registerPanel = new RegisterPanel(this);
+        RegisterPanel registerPanel = new RegisterPanel(this);
 //        HomePanel homePanel = new HomePanel();
 
         cardPanel.add(loginPanel, "login");
-//        cardPanel.add(registerPanel, "register");
+        cardPanel.add(registerPanel, "register");
 //        cardPanel.add(homePanel, "home");
 
         add(cardPanel);
