@@ -39,6 +39,11 @@ public class LoginUser {
     }
 
     // successful login; now decrypt the local db file
+    try {
+      db.updateLastLoginTime(this.username, System.currentTimeMillis());
+    } catch (Exception e) {
+      System.err.println("[LoginUser] Failed to update the last login time: " + e.toString());
+    }
 
     return null;
   }
