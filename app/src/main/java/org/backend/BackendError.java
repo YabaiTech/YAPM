@@ -4,7 +4,7 @@ class BackendError {
   public static enum AllErrorCodes {
     InvalidUserName,
 
-    PasswordStringIsNotUTF8,
+    PasswordContainsUnallowedChars,
     PasswordNeedsToBeAtleast8Chars,
     PasswordNeedsAtleast1Lowercase,
     PasswordNeedsAtleast1Uppercase,

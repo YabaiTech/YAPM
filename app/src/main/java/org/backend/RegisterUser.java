@@ -55,7 +55,7 @@ class RegisterUser {
    * 3) At least 1 uppercase letter
    * 4) At least 1 numberical digit
    * 5) At least 1 special characters/symbols (Make sure UTF-8)
-   * 6) No characters are outside UTF-8
+   * 6) No characters are outside the above catagories are allowed
    */
   private BackendError isValidPassword(String pwd) {
     boolean isAtleast8Chars = false;
@@ -71,12 +71,6 @@ class RegisterUser {
           "Password needs to be at least 8 characters long", "isValidPassword");
     }
 
-    // check whether the string is valid UTF-8. If they enter emoji, it's not.
-    if (!isUTF8(pwd)) {
-      return new BackendError(BackendError.AllErrorCodes.PasswordStringIsNotUTF8,
-          "Password must only contain UTF-8 characters", "isValidPassword");
-    }
-
     for (int i = 0; i < pwd.length(); i++) {
       char c = pwd.charAt(i);
 
@@ -89,15 +83,17 @@ class RegisterUser {
 
       if (isLowercase) {
         hasAtleast1Lowercase = true;
-      }
-      if (isUppercase) {
+      } else if (isUppercase) {
         hasAtleast1Uppercase = true;
-      }
-      if (isNumeric) {
+      } else if (isNumeric) {
         hasAtleast1Number = true;
-      }
-      if (isSpecialChar) {
+      } else if (isSpecialChar) {
         hasAtleast1Special = true;
+      } else {
+        // contains characters that are outside the allowed characters
+        return new BackendError(BackendError.AllErrorCodes.PasswordContainsUnallowedChars,
+            "Password can only have characters that are lowercase or uppercase alphabets, numbers, special characters",
+            "isValidPassword");
       }
 
       if (isAtleast8Chars && hasAtleast1Lowercase && hasAtleast1Uppercase && hasAtleast1Number && hasAtleast1Special) {
@@ -123,10 +119,6 @@ class RegisterUser {
     }
 
     return null; // unreachable
-  }
-
-  private boolean isUTF8(String str) {
-    return StandardCharsets.UTF_8.newEncoder().canEncode(str);
   }
 
   public BackendError register() {

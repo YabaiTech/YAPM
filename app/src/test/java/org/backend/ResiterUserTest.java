@@ -19,4 +19,24 @@ class AppTest {
 
     assertNull(response);
   }
+
+  @Test
+  void nonUTF8PasswordsGetRejected() {
+    RegisterUser reg = new RegisterUser();
+    BackendError response = reg.setPassword("🙂aBc123#!");
+
+    BackendError.AllErrorCodes expected = BackendError.AllErrorCodes.PasswordContainsUnallowedChars;
+    assert (response != null);
+    assertEquals(expected, response.getErrorCode());
+  }
+
+  @Test
+  void passwordsWithoutLowercaseGetsRejected() {
+    RegisterUser reg = new RegisterUser();
+    BackendError response = reg.setPassword("XYZ123#!");
+
+    BackendError.AllErrorCodes expected = BackendError.AllErrorCodes.PasswordNeedsAtleast1Lowercase;
+    assert (response != null);
+    assertEquals(expected, response.getErrorCode());
+  }
 }
