@@ -1,7 +1,9 @@
 package org.backend;
 
-class BackendError {
+public class BackendError {
   public static enum AllErrorCodes {
+    DbTransactionError,
+
     InvalidUserName,
     InvalidEmail,
 
@@ -12,7 +14,10 @@ class BackendError {
     PasswordNeedsAtleast1Number,
     PasswordNeedsAtleast1SpecialChar,
 
-    DatabaseConnectionError
+    UsernameNotProvided,
+    EmailNotProvided,
+    PasswordNotProvided,
+    HashedPasswordNotGenerated
   }
 
   private AllErrorCodes errorCode;

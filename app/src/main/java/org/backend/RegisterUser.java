@@ -1,11 +1,24 @@
 package org.backend;
 
-class RegisterUser {
-  private String username;
-  private String plaintextPassword;
-  private String email;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.security.SecureRandom;
+import java.security.spec.KeySpec;
+import java.util.Base64;
+import java.util.Random;
 
-  RegisterUser() {
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
+
+public class RegisterUser {
+  private String username;
+  private String email;
+  private String plaintextPassword;
+  private String hashedPassword;
+
+  public RegisterUser() {
   }
 
   public BackendError setUsername(String uname) {
@@ -134,9 +147,109 @@ class RegisterUser {
     return null; // unreachable
   }
 
+  private BackendError isEverythingSet() {
+    if (this.username == null) {
+      return new BackendError(BackendError.AllErrorCodes.UsernameNotProvided, "Username not provided",
+          "isEverythingSet");
+    }
+    if (this.email == null) {
+      return new BackendError(BackendError.AllErrorCodes.EmailNotProvided, "Email not provided", "isEverythingSet");
+    }
+    if (this.plaintextPassword == null) {
+      return new BackendError(BackendError.AllErrorCodes.PasswordNotProvided, "Password not provided",
+          "isEverythingSet");
+    }
+    if (this.hashedPassword == null) {
+      return new BackendError(BackendError.AllErrorCodes.HashedPasswordNotGenerated, "Hashed password not generated",
+          "isEverythingSet");
+    }
+
+    return null;
+  }
+
+  private int getRandomNum() {
+    // generate a random number from 1 to 90,000
+    final int MIN = 1;
+    final int MAX = 90000;
+    Random rand = new Random();
+    int randNum = rand.nextInt(MAX - MIN) + MIN;
+
+    return randNum;
+  }
+
+  public String getValidDbFilePath() {
+    // If in Linux, store in `/home/<<current_user>>`
+    // If in Window, store in the documents folder
+    // Other OS, store it in the `pwd = present working directory`
+
+    String os = System.getProperty("os.name");
+    String homeDir = System.getProperty("user.home");
+    String dbStoreDirectory;
+    String dbFileName;
+
+    if (os.equalsIgnoreCase("windows")) {
+      dbStoreDirectory = homeDir + "\\YAPM";
+    } else {
+      dbStoreDirectory = homeDir + "/YAPM";
+    }
+    Path dirPath = Paths.get(dbStoreDirectory);
+    if (!Files.exists(dirPath)) {
+      File newDir = new File(homeDir, "YAPM");
+      if (newDir.mkdir()) {
+        System.out.println("[RegisterUser] Created the YAPM directory");
+      } else {
+        System.err.println("[RegisterUser] Failed to create the YAPM directory");
+        System.exit(1);
+      }
+    }
+
+    // now the YAPM directory exists, just need to generate a suitable name for the
+    // db file
+    dbFileName = this.username + getRandomNum() + ".db";
+    return new File(dbStoreDirectory, dbFileName).toString();
+  }
+
+  private void generatePasswordHash() {
+    // For salt
+    SecureRandom random = new SecureRandom();
+    byte[] salt = new byte[16];
+    random.nextBytes(salt);
+
+    // For the hash (+salt)
+    KeySpec spec = new PBEKeySpec(this.plaintextPassword.toCharArray(), salt, 65536, 128);
+    SecretKeyFactory factory;
+    byte[] hash;
+
+    try {
+      factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+      hash = factory.generateSecret(spec).getEncoded();
+
+      this.hashedPassword = Base64.getEncoder().encodeToString(hash);
+    } catch (Exception e) {
+      System.err.println(
+          "[RegisterUser] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
+              + e.toString());
+      System.exit(1);
+    }
+  }
+
   public BackendError register() {
+    generatePasswordHash();
+    BackendError response = isEverythingSet();
+    if (response != null) {
+      return response;
+    }
+
     // save to the DB
     DBConnection db = new DBConnection();
+
+    try {
+      String dbFilePath = getValidDbFilePath();
+      db.addUser(this.username, this.email, this.hashedPassword, dbFilePath, System.currentTimeMillis());
+    } catch (Exception e) {
+      return new BackendError(BackendError.AllErrorCodes.DbTransactionError, "Failed to add user to the database",
+          "register()");
+    }
 
     return null;
   }

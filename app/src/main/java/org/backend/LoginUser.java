@@ -1,11 +1,11 @@
 package org.backend;
 
-class LoginUser {
+public class LoginUser {
   private String username;
   private String password;
   private String dbPath;
 
-  LoginUser(String uname, String pwd) {
+  public LoginUser(String uname, String pwd) {
     this.username = uname;
     this.password = pwd;
 
