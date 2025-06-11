@@ -136,6 +136,7 @@ class RegisterUser {
 
   public BackendError register() {
     // save to the DB
+    DBConnection db = new DBConnection();
 
     return null;
   }
