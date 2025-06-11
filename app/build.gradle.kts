@@ -23,6 +23,13 @@ dependencies {
 
     // This dependency is used by the application.
     implementation(libs.guava)
+
+    // The following are
+    // groupId:     com.formdev
+    // artifactId:  flatlaf-intellij-themes
+    // version:     3.6 (the current latest version)
+    implementation("com.formdev:flatlaf:3.6")
+    implementation("com.formdev:flatlaf-intellij-themes:3.6")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
