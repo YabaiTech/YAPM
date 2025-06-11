@@ -54,8 +54,8 @@ public class VaultManager {
 
       connection.commit();
     } catch (SQLException e) {
-      System.out.println("[VaultManager] ERROR: ");
       e.printStackTrace();
+      throw new IllegalStateException("[VaultManager] ERROR: failed to create vault.");
     }
   }
 
@@ -161,8 +161,9 @@ public class VaultManager {
 
       connection.commit();
     } catch (SQLException e) {
-      System.out.println("[VaultManager] ERROR: ");
       e.printStackTrace();
+
+      throw new IllegalStateException("[VaultManager] ERROR: failed to add entry.");
     }
   }
 

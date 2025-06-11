@@ -13,8 +13,6 @@ class CryptoUtilsTest {
       EncryptedData encrypted = CryptoUtils.encrypt(plaintext, masterPasswd);
       String decrypted = CryptoUtils.decrypt(encrypted, masterPasswd);
 
-      System.out.println(plaintext);
-      System.out.println(decrypted);
       assertEquals(plaintext, decrypted, "Plaintext password should be the same before and after encryption.");
     } catch (Exception e) {
       e.printStackTrace();
