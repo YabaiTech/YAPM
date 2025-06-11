@@ -17,7 +17,9 @@ public class BackendError {
     UsernameNotProvided,
     EmailNotProvided,
     PasswordNotProvided,
-    HashedPasswordNotGenerated
+    HashedPasswordNotGenerated,
+
+    InvalidLoginCredentials
   }
 
   private AllErrorCodes errorCode;

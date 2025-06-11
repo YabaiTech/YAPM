@@ -36,4 +36,41 @@ class DBConnection {
       System.out.println("Failed to add the user!");
     }
   }
+
+  public UserInfo getUserInfo(String username) throws SQLException {
+    String query = "SELECT * FROM `master_users` WHERE `username`=?";
+
+    PreparedStatement ps = con.prepareStatement(query);
+
+    ps.setString(1, String.valueOf(username));
+    ResultSet res = ps.executeQuery();
+
+    UserInfo fetchedUser = new UserInfo();
+
+    if (res.next()) {
+      fetchedUser.username = res.getString("username");
+      fetchedUser.email = res.getString("email");
+      fetchedUser.hashedPassword = res.getString("hashed_password");
+      fetchedUser.passwordDbPath = res.getString("pwd_db_path");
+      fetchedUser.lastLoggedInTime = res.getLong("last_logged_in");
+
+    }
+
+    return fetchedUser;
+  }
+
+  public boolean updateLastLoginTime(String username, long time) throws SQLException {
+    String query = "UPDATE `master_users` SET `last_logged_in`=? WHERE `username`=?";
+
+    PreparedStatement ps = con.prepareStatement(query);
+    ps.setLong(1, time);
+    ps.setString(2, username);
+
+    int opStat = ps.executeUpdate();
+
+    if (opStat == 1) {
+      return true;
+    }
+    return false;
+  }
 }
