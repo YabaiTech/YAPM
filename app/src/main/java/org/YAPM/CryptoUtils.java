@@ -7,6 +7,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.Base64;
@@ -47,7 +48,7 @@ public class CryptoUtils {
     cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
 
     byte[] decrypted = cipher.doFinal(cipherText);
-    return new String(decrypted);
+    return new String(decrypted, StandardCharsets.UTF_8);
   }
 
   public static SecretKeySpec deriveKeyFromPasswd(String passwd, byte[] salt) throws Exception {
