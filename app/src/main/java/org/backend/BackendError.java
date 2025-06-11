@@ -3,6 +3,7 @@ package org.backend;
 class BackendError {
   public static enum AllErrorCodes {
     InvalidUserName,
+    InvalidEmail,
 
     PasswordContainsUnallowedChars,
     PasswordNeedsToBeAtleast8Chars,

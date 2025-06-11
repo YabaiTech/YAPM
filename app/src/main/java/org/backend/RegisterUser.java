@@ -1,10 +1,9 @@
 package org.backend;
 
-import java.nio.charset.StandardCharsets;
-
 class RegisterUser {
   private String username;
   private String plaintextPassword;
+  private String email;
 
   RegisterUser() {
   }
@@ -35,6 +34,20 @@ class RegisterUser {
       }
     }
 
+    return true;
+  }
+
+  public BackendError setEmail(String email) {
+    if (isValidEmail(email)) {
+      this.email = email;
+      return null;
+    }
+
+    return new BackendError(BackendError.AllErrorCodes.InvalidEmail, "Invalid email provided", "setEmail");
+  }
+
+  private boolean isValidEmail(String email) {
+    // placeholder
     return true;
   }
 
