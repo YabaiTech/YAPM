@@ -93,7 +93,36 @@ public class LoginPanel extends JPanel {
         loginButton.setAlignmentX(LEFT_ALIGNMENT);
         loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
         loginButton.setPreferredSize(new Dimension(450, 35));
-        loginButton.addActionListener(e -> mainUI.showPage("home"));
+        //loginButton.addActionListener(e -> mainUI.showPage("home"));
+        loginButton.addActionListener(e -> {
+            String input = usernameEmailField.getText().trim();
+            String password = new String(passField.getPassword()).trim();
+
+            if (input.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please enter both username/email and password.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            boolean isEmail = input.contains("@") && input.matches("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,6}$");
+
+
+            boolean isUsername = input.matches("^[a-zA-Z0-9_]{3,20}$");
+
+            if (!isEmail && !isUsername) {
+                JOptionPane.showMessageDialog(this, "Enter a valid email or alphanumeric username (3-20 chars).", "Invalid Input", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            if (password.length() < 6) {
+                JOptionPane.showMessageDialog(this, "Password must be at least 6 characters.", "Invalid Password", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+
+
+            // At this point, input is valid
+            mainUI.showPage("home");
+        });
+
         formPanel.add(loginButton);
 
         formPanel.add(Box.createVerticalStrut(15));

@@ -102,7 +102,36 @@ public class RegisterPanel extends JPanel {
         registerButton.setAlignmentX(LEFT_ALIGNMENT);
         registerButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
         registerButton.setPreferredSize(new Dimension(450, 35));
-        registerButton.addActionListener(e -> mainUI.showPage("login"));
+        //registerButton.addActionListener(e -> mainUI.showPage("login"));
+        registerButton.addActionListener(e -> {
+            String username = usernameField.getText().trim();
+            String email = emailField.getText().trim();
+            String password = new String(passField.getPassword()).trim();
+
+
+            if (username.isEmpty() || email.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please fill in all fields.", "Missing Fields", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            if (!username.matches("^[a-zA-Z0-9_]{3,20}$")) {
+                JOptionPane.showMessageDialog(this, "Username must be 3–20 characters and alphanumeric.", "Invalid Username", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            if (!email.matches("^[\\w.-]+@[\\w.-]+\\.[a-zA-Z]{2,6}$")) {
+                JOptionPane.showMessageDialog(this, "Please enter a valid email address.", "Invalid Email", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            if (password.length() < 6) {
+                JOptionPane.showMessageDialog(this, "Password must be at least 6 characters.", "Weak Password", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            JOptionPane.showMessageDialog(this, "Registration successful!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            mainUI.showPage("login");
+        });
+
         formPanel.add(registerButton);
 
         formPanel.add(Box.createVerticalStrut(15));
