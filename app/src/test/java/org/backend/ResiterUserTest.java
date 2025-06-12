@@ -38,7 +38,7 @@ class AppTest {
     RegisterUser reg = new RegisterUser();
     BackendError response = reg.setPassword("🙂aBc123#!");
 
-    BackendError.AllErrorCodes expected = BackendError.AllErrorCodes.PasswordContainsUnallowedChars;
+    BackendError.ErrorTypes expected = BackendError.ErrorTypes.PasswordContainsUnallowedChars;
     assert (response != null);
     assertEquals(expected, response.getErrorCode());
   }
@@ -48,7 +48,7 @@ class AppTest {
     RegisterUser reg = new RegisterUser();
     BackendError response = reg.setPassword("XYZ123#!");
 
-    BackendError.AllErrorCodes expected = BackendError.AllErrorCodes.PasswordNeedsAtleast1Lowercase;
+    BackendError.ErrorTypes expected = BackendError.ErrorTypes.PasswordNeedsAtleast1Lowercase;
     assert (response != null);
     assertEquals(expected, response.getErrorCode());
   }
