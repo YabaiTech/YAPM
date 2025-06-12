@@ -37,7 +37,7 @@ public class BackendError {
     this.additionalContext = errMsg;
   }
 
-  public ErrorTypes getErrorCode() {
+  public ErrorTypes getErrorType() {
     return this.errorType;
   }
 

@@ -40,7 +40,7 @@ class AppTest {
 
     BackendError.ErrorTypes expected = BackendError.ErrorTypes.PasswordContainsUnallowedChars;
     assert (response != null);
-    assertEquals(expected, response.getErrorCode());
+    assertEquals(expected, response.getErrorType());
   }
 
   @Test
@@ -50,7 +50,7 @@ class AppTest {
 
     BackendError.ErrorTypes expected = BackendError.ErrorTypes.PasswordNeedsAtleast1Lowercase;
     assert (response != null);
-    assertEquals(expected, response.getErrorCode());
+    assertEquals(expected, response.getErrorType());
   }
 
   @Test
