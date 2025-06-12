@@ -28,25 +28,19 @@ public class BackendError {
     FileSystemError,
   }
 
-  private AllErrorCodes errorCode;
-  private String errorMessage;
-  private String errorCreator;
+  private AllErrorCodes errorType;
+  private String additionalContext;
 
-  BackendError(AllErrorCodes errCode, String errMsg, String errCreator) {
-    this.errorCode = errCode;
-    this.errorMessage = errMsg;
-    this.errorCreator = errCreator;
+  BackendError(AllErrorCodes errCode, String errMsg) {
+    this.errorType = errCode;
+    this.additionalContext = errMsg;
   }
 
   public AllErrorCodes getErrorCode() {
-    return this.errorCode;
+    return this.errorType;
   }
 
-  public String getErrorMessage() {
-    return this.errorMessage;
-  }
-
-  public String getErrorCreator() {
-    return this.errorCreator;
+  public String getContext() {
+    return this.additionalContext;
   }
 }
