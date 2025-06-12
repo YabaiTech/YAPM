@@ -21,6 +21,7 @@ public class BackendError {
     SaltForHashNotGenerated,
 
     UsernameAlreadyExists,
+    EmailAlreadyExists,
 
     InvalidLoginCredentials,
 

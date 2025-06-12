@@ -247,9 +247,23 @@ public class RegisterUser {
     }
   }
 
-  private boolean doesUserExist(String username) {
+  private boolean isUsernameTaken(String username) {
     try {
       UserInfo fetchedUser = dbOps.getUserInfo(username);
+      // check the sentinel value to decide whether the user exists
+      if (fetchedUser.lastLoggedInTime != -1) {
+        return true;
+      }
+
+      return false;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+
+  private boolean isEmailAlreadyUsed(String email) {
+    try {
+      UserInfo fetchedUser = dbOps.getUserInfoByEmail(email);
       // check the sentinel value to decide whether the user exists
       if (fetchedUser.lastLoggedInTime != -1) {
         return true;
@@ -293,10 +307,16 @@ public class RegisterUser {
       return response;
     }
 
-    // check if there is already a user with this username
-    if (doesUserExist(this.username)) {
+    // check if the provided username is already taken
+    if (isUsernameTaken(this.username)) {
       return new BackendError(BackendError.ErrorTypes.UsernameAlreadyExists,
           "[RegisterUser.register] A user with that username already exists");
+    }
+
+    // check if the provided email is already taken
+    if (isEmailAlreadyUsed(this.email)) {
+      return new BackendError(BackendError.ErrorTypes.EmailAlreadyExists,
+          "[RegisterUser.register] A user is already registered using that email");
     }
 
     String dbFilePath = getDbFilePath();

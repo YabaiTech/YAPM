@@ -56,6 +56,29 @@ public class DBOperations {
     return fetchedUser;
   }
 
+  public UserInfo getUserInfoByEmail(String email) throws SQLException {
+    String query = "SELECT * FROM `" + EnvVars.MASTER_USER_TABLE + "` WHERE `email`=?";
+
+    PreparedStatement ps = con.prepareStatement(query);
+
+    ps.setString(1, String.valueOf(email));
+    ResultSet res = ps.executeQuery();
+
+    UserInfo fetchedUser = new UserInfo();
+    fetchedUser.lastLoggedInTime = -1; // sentinel value
+
+    if (res.next()) {
+      fetchedUser.username = res.getString("username");
+      fetchedUser.email = res.getString("email");
+      fetchedUser.hashedPassword = res.getString("hashed_password");
+      fetchedUser.salt = res.getString("salt");
+      fetchedUser.passwordDbPath = res.getString("pwd_db_path");
+      fetchedUser.lastLoggedInTime = res.getLong("last_logged_in");
+    }
+
+    return fetchedUser;
+  }
+
   public boolean updateLastLoginTime(String username, long time) throws SQLException {
     String query = "UPDATE `" + EnvVars.MASTER_USER_TABLE + "` SET `last_logged_in`=? WHERE `username`=?";
 
