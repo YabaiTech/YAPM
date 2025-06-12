@@ -1,6 +1,6 @@
 package org.YAPM;
 
-public enum DBStatus {
+public enum VaultStatus {
   DBConnectionSuccess,
   DBConnectionFailure,
   DBCreateVaultSuccess,

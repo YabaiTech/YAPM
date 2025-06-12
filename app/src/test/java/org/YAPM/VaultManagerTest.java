@@ -23,28 +23,28 @@ class VaultManagerTest {
   public void setUp() throws Exception {
     dbPath = tmpDir.resolve("testVault.db").toString();
     vm = new VaultManager(dbPath, MASTER_PASSWD);
-    assertEquals(DBStatus.DBConnectionSuccess, vm.connectToDB(), "Should connect successfully");
-    assertEquals(DBStatus.DBCreateVaultSuccess, vm.createVault(), "Vault creation should succeed");
+    assertEquals(VaultStatus.DBConnectionSuccess, vm.connectToDB(), "Should connect successfully");
+    assertEquals(VaultStatus.DBCreateVaultSuccess, vm.createVault(), "Vault creation should succeed");
   }
 
   @AfterEach
   public void cleanup() throws Exception {
-    assertEquals(DBStatus.DBCloseSuccess, vm.closeDB(), "Should close DB cleanly");
+    assertEquals(VaultStatus.DBCloseSuccess, vm.closeDB(), "Should close DB cleanly");
   }
 
   @Test
   void testCreateAndOpenEmptyVault() throws Exception {
     ArrayList<Entry> entries = new ArrayList<Entry>();
-    assertEquals(DBStatus.DBOpenVaultSuccess, vm.openVault(entries));
+    assertEquals(VaultStatus.DBOpenVaultSuccess, vm.openVault(entries));
     assertTrue(entries.isEmpty(), "Vault should be empty upon creation.");
   }
 
   @Test
   public void testAddEntryAndRetrieve() throws Exception {
-    assertEquals(DBStatus.DBAddEntrySuccess, vm.addEntry("http://example.com", "user1", "pass1"));
+    assertEquals(VaultStatus.DBAddEntrySuccess, vm.addEntry("http://example.com", "user1", "pass1"));
 
     ArrayList<Entry> entries = new ArrayList<Entry>();
-    assertEquals(DBStatus.DBOpenVaultSuccess, vm.openVault(entries));
+    assertEquals(VaultStatus.DBOpenVaultSuccess, vm.openVault(entries));
     assertEquals(1, entries.size());
 
     Entry e = entries.get(0);
@@ -62,7 +62,7 @@ class VaultManagerTest {
 
     vm.openVault(entries);
     int idToDelete = 2;
-    assertEquals(DBStatus.DBDeleteEntrySuccess, vm.deleteEntry(idToDelete));
+    assertEquals(VaultStatus.DBDeleteEntrySuccess, vm.deleteEntry(idToDelete));
 
     entries.clear();
     vm.openVault(entries);
@@ -75,7 +75,7 @@ class VaultManagerTest {
 
   @Test
   public void testDeleteEntryInvalidID() throws Exception {
-    assertEquals(DBStatus.DBDeleteEntryFailureInvalidID, vm.deleteEntry(999));
+    assertEquals(VaultStatus.DBDeleteEntryFailureInvalidID, vm.deleteEntry(999));
   }
 
   @Test
@@ -86,18 +86,18 @@ class VaultManagerTest {
     vmWrong.connectToDB();
 
     ArrayList<Entry> entries = new ArrayList<Entry>();
-    assertEquals(DBStatus.DBConnectionSuccess, vmWrong.connectToDB(),
+    assertEquals(VaultStatus.DBConnectionSuccess, vmWrong.connectToDB(),
         "Should connect successfully even with wrong password.");
     ;
-    assertEquals(DBStatus.DBWrongMasterPasswd, vmWrong.openVault(entries),
+    assertEquals(VaultStatus.DBWrongMasterPasswd, vmWrong.openVault(entries),
         "Opening vault with wrong master password should return DBWrongPassword.");
-    assertEquals(DBStatus.DBCloseSuccess, vmWrong.closeDB(), "Should close DB cleanly");
+    assertEquals(VaultStatus.DBCloseSuccess, vmWrong.closeDB(), "Should close DB cleanly");
   }
 
   @Test
   public void testAddEmptyParameter() throws Exception {
-    assertEquals(DBStatus.DBAddEntryFailureEmptyParameter, vm.addEntry("", "user", "pwd"));
-    assertEquals(DBStatus.DBAddEntryFailureEmptyParameter, vm.addEntry("url", "", "pwd"));
-    assertEquals(DBStatus.DBAddEntryFailureEmptyParameter, vm.addEntry("url", "user", ""));
+    assertEquals(VaultStatus.DBAddEntryFailureEmptyParameter, vm.addEntry("", "user", "pwd"));
+    assertEquals(VaultStatus.DBAddEntryFailureEmptyParameter, vm.addEntry("url", "", "pwd"));
+    assertEquals(VaultStatus.DBAddEntryFailureEmptyParameter, vm.addEntry("url", "user", ""));
   }
 }

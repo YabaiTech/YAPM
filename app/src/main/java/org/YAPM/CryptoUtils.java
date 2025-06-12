@@ -14,11 +14,11 @@ import java.util.Base64;
 
 public class CryptoUtils {
   public static EncryptedData encrypt(String plaintext, String passwd) throws Exception {
-    byte[] salt = generateRandomBytes(Constants.SALT_LENGTH);
+    byte[] salt = generateRandomBytes(VaultConst.SALT_LENGTH);
     SecretKeySpec key = deriveKeyFromPasswd(passwd, salt);
 
-    Cipher cipher = Cipher.getInstance(Constants.ENCRYPTION_ALGO);
-    byte[] iv = generateRandomBytes(Constants.IV_LENGTH);
+    Cipher cipher = Cipher.getInstance(VaultConst.ENCRYPTION_ALGO);
+    byte[] iv = generateRandomBytes(VaultConst.IV_LENGTH);
     cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
 
     byte[] encrypted = cipher.doFinal(plaintext.getBytes());
@@ -29,8 +29,8 @@ public class CryptoUtils {
   public static EncryptedData encrypt(String plaintext, String passwd, byte[] salt) throws Exception {
     SecretKeySpec key = deriveKeyFromPasswd(passwd, salt);
 
-    Cipher cipher = Cipher.getInstance(Constants.ENCRYPTION_ALGO);
-    byte[] iv = generateRandomBytes(Constants.IV_LENGTH);
+    Cipher cipher = Cipher.getInstance(VaultConst.ENCRYPTION_ALGO);
+    byte[] iv = generateRandomBytes(VaultConst.IV_LENGTH);
     cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
 
     byte[] encrypted = cipher.doFinal(plaintext.getBytes());
@@ -44,7 +44,7 @@ public class CryptoUtils {
     byte[] salt = Base64.getDecoder().decode(data.getSalt());
 
     SecretKeySpec key = deriveKeyFromPasswd(passwd, salt);
-    Cipher cipher = Cipher.getInstance(Constants.ENCRYPTION_ALGO);
+    Cipher cipher = Cipher.getInstance(VaultConst.ENCRYPTION_ALGO);
     cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
 
     byte[] decrypted = cipher.doFinal(cipherText);
@@ -52,8 +52,8 @@ public class CryptoUtils {
   }
 
   public static SecretKeySpec deriveKeyFromPasswd(String passwd, byte[] salt) throws Exception {
-    SecretKeyFactory factory = SecretKeyFactory.getInstance(Constants.KEY_DERIVATION_FUNCTION);
-    KeySpec spec = new PBEKeySpec(passwd.toCharArray(), salt, Constants.ITERATIONS, Constants.KEY_LENGTH);
+    SecretKeyFactory factory = SecretKeyFactory.getInstance(VaultConst.KEY_DERIVATION_FUNCTION);
+    KeySpec spec = new PBEKeySpec(passwd.toCharArray(), salt, VaultConst.ITERATIONS, VaultConst.KEY_LENGTH);
     SecretKey res = factory.generateSecret(spec);
 
     return new SecretKeySpec(res.getEncoded(), "AES");

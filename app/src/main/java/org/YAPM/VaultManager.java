@@ -21,7 +21,7 @@ public class VaultManager {
     this.masterPasswd = masterPasswd;
   }
 
-  public DBStatus createVault() {
+  public VaultStatus createVault() {
     try (Statement statement = this.connection.createStatement()) {
       statement.executeUpdate("CREATE TABLE IF NOT EXISTS metadata (" +
           "  salt TEXT NOT NULL," +
@@ -40,8 +40,9 @@ public class VaultManager {
       try {
         encryptedVerificationText = CryptoUtils.encrypt(VERIFICATION_TEXT, masterPasswd);
       } catch (Exception e) {
+        System.out.println("[VaultManager.createVault] ERROR: ");
         e.printStackTrace();
-        return DBStatus.DBCreateVaultFailure;
+        return VaultStatus.DBCreateVaultFailure;
       }
       String verTextB64 = encryptedVerificationText.getCipherText() + ":" + encryptedVerificationText.getIV();
 
@@ -53,29 +54,33 @@ public class VaultManager {
       }
 
       this.connection.commit();
-      return DBStatus.DBCreateVaultSuccess;
+      return VaultStatus.DBCreateVaultSuccess;
     } catch (SQLException e) {
+      System.out.println("[VaultManager.createVault] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBCreateVaultFailure;
+      return VaultStatus.DBCreateVaultFailure;
     }
   }
 
-  public DBStatus openVault(ArrayList<Entry> entries) {
+  public VaultStatus openVault(ArrayList<Entry> entries) {
     byte[] salt;
     try {
       salt = verifyMasterPasswd(masterPasswd);
       if (salt == null) {
-        return DBStatus.DBOpenVaultFailure;
+        return VaultStatus.DBOpenVaultFailure;
       }
     } catch (IllegalStateException e) {
+      System.out.println("[VaultManager.openVault] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBBadVerificationFormat;
+      return VaultStatus.DBBadVerificationFormat;
     } catch (SecurityException e) {
+      System.out.println("[VaultManager.openVault] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBWrongMasterPasswd;
+      return VaultStatus.DBWrongMasterPasswd;
     } catch (Exception e) {
+      System.out.println("[VaultManager.openVault] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBOpenVaultFailure;
+      return VaultStatus.DBOpenVaultFailure;
     }
 
     try (PreparedStatement preparedStatement = this.connection
@@ -94,49 +99,55 @@ public class VaultManager {
         try {
           plainPasswd = CryptoUtils.decrypt(passwd, masterPasswd);
         } catch (Exception e) {
+          System.out.println("[VaultManager.openVault] ERROR: ");
           e.printStackTrace();
-          return DBStatus.DBOpenVaultFailure;
+          return VaultStatus.DBOpenVaultFailure;
         }
 
         entries.add(new Entry(urlField, usernameField, plainPasswd));
       }
 
       this.connection.commit();
-      return DBStatus.DBOpenVaultSuccess;
+      return VaultStatus.DBOpenVaultSuccess;
     } catch (SQLException e) {
+      System.out.println("[VaultManager.openVault] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBOpenVaultFailure;
+      return VaultStatus.DBOpenVaultFailure;
     }
   }
 
-  public DBStatus addEntry(String urlField, String usernameField, String plainPasswdField) {
+  public VaultStatus addEntry(String urlField, String usernameField, String plainPasswdField) {
     if (urlField.isEmpty() || usernameField.isEmpty() || plainPasswdField.isEmpty()) {
-      return DBStatus.DBAddEntryFailureEmptyParameter;
+      return VaultStatus.DBAddEntryFailureEmptyParameter;
     }
 
     byte[] salt;
     try {
       salt = verifyMasterPasswd(masterPasswd);
       if (salt == null) {
-        return DBStatus.DBAddEntryFailureException;
+        return VaultStatus.DBAddEntryFailureException;
       }
     } catch (IllegalStateException e) {
+      System.out.println("[VaultManager.addEntry] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBBadVerificationFormat;
+      return VaultStatus.DBBadVerificationFormat;
     } catch (SecurityException e) {
+      System.out.println("[VaultManager.addEntry] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBWrongMasterPasswd;
+      return VaultStatus.DBWrongMasterPasswd;
     } catch (Exception e) {
+      System.out.println("[VaultManager.addEntry] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBAddEntryFailureException;
+      return VaultStatus.DBAddEntryFailureException;
     }
 
     EncryptedData encrypted;
     try {
       encrypted = CryptoUtils.encrypt(plainPasswdField, masterPasswd, salt);
     } catch (Exception e) {
+      System.out.println("[VaultManager.addEntry] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBAddEntryFailureException;
+      return VaultStatus.DBAddEntryFailureException;
     }
     String cipherB64 = encrypted.getCipherText();
     String ivB64 = encrypted.getIV();
@@ -151,42 +162,47 @@ public class VaultManager {
       preparedStatement.executeUpdate();
       this.connection.commit();
 
-      return DBStatus.DBAddEntrySuccess;
+      return VaultStatus.DBAddEntrySuccess;
     } catch (SQLException e) {
+      System.out.println("[VaultManager.addEntry] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBAddEntryFailureException;
+      return VaultStatus.DBAddEntryFailureException;
     }
   }
 
-  public DBStatus deleteEntry(int entryID) {
+  public VaultStatus deleteEntry(int entryID) {
     try {
       byte[] salt = verifyMasterPasswd(masterPasswd);
       if (salt == null) {
-        return DBStatus.DBDeleteEntryFailureException;
+        return VaultStatus.DBDeleteEntryFailureException;
       }
     } catch (IllegalStateException e) {
+      System.out.println("[VaultManager.deleteEntry] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBBadVerificationFormat;
+      return VaultStatus.DBBadVerificationFormat;
     } catch (SecurityException e) {
+      System.out.println("[VaultManager.deleteEntry] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBWrongMasterPasswd;
+      return VaultStatus.DBWrongMasterPasswd;
     } catch (Exception e) {
+      System.out.println("[VaultManager.deleteEntry] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBDeleteEntryFailureException;
+      return VaultStatus.DBDeleteEntryFailureException;
     }
 
     try (PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM entries WHERE id = ?")) {
       preparedStatement.setInt(1, entryID);
       int affected = preparedStatement.executeUpdate();
       if (affected == 0) {
-        return DBStatus.DBDeleteEntryFailureInvalidID;
+        return VaultStatus.DBDeleteEntryFailureInvalidID;
       }
 
       this.connection.commit();
-      return DBStatus.DBDeleteEntrySuccess;
+      return VaultStatus.DBDeleteEntrySuccess;
     } catch (SQLException e) {
+      System.out.println("[VaultManager.deleteEntry] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBDeleteEntryFailureException;
+      return VaultStatus.DBDeleteEntryFailureException;
     }
   }
 
@@ -196,20 +212,21 @@ public class VaultManager {
     try (Statement statement = this.connection.createStatement();
         ResultSet resultSet = statement.executeQuery("SELECT salt, verification FROM metadata LIMIT 1")) {
       if (!resultSet.next()) {
-        throw new IllegalStateException("[VaultManager] ERROR: metadata table is missing or corrupted.");
+        throw new IllegalStateException(
+            "[VaultManager.verifyMasterPasswd] ERROR: metadata table is missing or corrupted.");
       }
 
       saltB64 = resultSet.getString("salt");
       verPayload = resultSet.getString("verification");
     } catch (SQLException e) {
-      System.out.println("[VaultManager] ERROR: ");
+      System.out.println("[VaultManager.verifyMasterPasswd] ERROR: ");
       e.printStackTrace();
       return null;
     }
 
     String[] segments = verPayload.split(":");
     if (segments.length != 2) {
-      throw new IllegalStateException("[VaultManager] ERROR: bad verification format.");
+      throw new IllegalStateException("[VaultManager.verifyMasterPasswd] ERROR: bad verification format.");
     }
 
     String cipherMasterPasswd = segments[0];
@@ -220,34 +237,36 @@ public class VaultManager {
     try {
       decrypted = CryptoUtils.decrypt(verificationData, masterPasswd);
     } catch (Exception e) {
-      throw new SecurityException("[VaultManager] ERROR: incorrect master password.", e);
+      throw new SecurityException("[VaultManager.verifyMasterPasswd] ERROR: incorrect master password.", e);
     }
     if (!decrypted.equals(VERIFICATION_TEXT)) {
-      throw new SecurityException("[VaultManager] ERROR: incorrect master password.");
+      throw new SecurityException("[VaultManager.verifyMasterPasswd] ERROR: incorrect master password.");
     }
 
     return Base64.getDecoder().decode(saltB64);
   }
 
-  public DBStatus connectToDB() {
+  public VaultStatus connectToDB() {
     try {
       this.connection = DriverManager.getConnection(JDBC_PREFIX + dbPath);
       this.connection.setAutoCommit(false);
 
-      return DBStatus.DBConnectionSuccess;
+      return VaultStatus.DBConnectionSuccess;
     } catch (SQLException e) {
+      System.out.println("[VaultManager.connectToDB] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBConnectionFailure;
+      return VaultStatus.DBConnectionFailure;
     }
   }
 
-  public DBStatus closeDB() {
+  public VaultStatus closeDB() {
     try {
       this.connection.close();
-      return DBStatus.DBCloseSuccess;
+      return VaultStatus.DBCloseSuccess;
     } catch (SQLException e) {
+      System.out.println("[VaultManager.closeDB] ERROR: ");
       e.printStackTrace();
-      return DBStatus.DBCloseFailure;
+      return VaultStatus.DBCloseFailure;
     }
   }
 }
