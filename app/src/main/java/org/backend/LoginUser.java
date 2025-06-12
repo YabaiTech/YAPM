@@ -1,5 +1,7 @@
 package org.backend;
 
+import org.vault.*;
+
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,33 +22,39 @@ public class LoginUser {
   private String dbPath;
   private UserInfo fetchedUser;
 
-  public LoginUser(DBConnection db, String uname, String email, String pwd) {
+  public LoginUser(DBConnection db, String accountIdentifier, String pwd) {
     this.dbOps = new DBOperations(db);
 
-    this.username = uname;
-    this.email = email;
+    if (isValidUsername(accountIdentifier)) {
+      this.username = accountIdentifier;
+    } else {
+      this.email = accountIdentifier;
+    }
+
     this.plaintextPassword = pwd;
   }
 
   public BackendError login() {
     try {
-      this.fetchedUser = this.dbOps.getUserInfo(this.username);
-
+      if (this.username != null) {
+        this.fetchedUser = this.dbOps.getUserInfo(this.username);
+      } else {
+        this.fetchedUser = this.dbOps.getUserInfoByEmail(this.email);
+      }
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
-          "[LoginUser.login] Failed to get user info from database");
+          "[LoginUser.login] Failed to get master user info from database");
     }
 
     generatePasswordHash();
-    if ((!this.hashedPassword.equals(this.fetchedUser.hashedPassword))
-        || (!this.email.equals(this.fetchedUser.email))) {
+    if ((!this.hashedPassword.equals(this.fetchedUser.hashedPassword))) {
       // failed to log in
       this.fetchedUser = null;
       return new BackendError(BackendError.ErrorTypes.InvalidLoginCredentials,
           "[LoginUser.login] Login credentials don't match");
     }
 
-    // successful login; now decrypt the local db file
+    // successful login
     try {
       this.dbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
     } catch (Exception e) {
@@ -55,6 +63,25 @@ public class LoginUser {
     }
 
     return null;
+  }
+
+  /*
+   * A valid username can only include alphanumeric characters.
+   */
+  private boolean isValidUsername(String uname) {
+    for (int i = 0; i < uname.length(); i++) {
+      char c = uname.charAt(i);
+
+      boolean isLowercase = ((c >= 'a') && (c <= 'z')) ? true : false;
+      boolean isUppercase = ((c >= 'A') && (c <= 'Z')) ? true : false;
+      boolean isNumeric = ((c >= '0') && (c <= '9')) ? true : false;
+
+      if (!isLowercase && !isUppercase && !isNumeric) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private void generatePasswordHash() {
@@ -108,7 +135,25 @@ public class LoginUser {
     return randNum;
   }
 
-  public BackendError generateNewDbFile() {
+  private BackendError createLocalDb(String dbPath) {
+    try (VaultManager vm = new VaultManager(dbPath, this.plaintextPassword)) {
+      VaultStatus resp = vm.connectToDB();
+      if (resp != VaultStatus.DBConnectionSuccess) {
+        return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
+            "[RegisterUser.createLocalDb] Failed to create vault. Provided error: " + resp);
+      }
+
+      resp = vm.createVault();
+      if (resp != VaultStatus.DBCreateVaultSuccess) {
+        return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
+            "[RegisterUser.createLocalDb] Failed to create vault. Provided error: " + resp);
+      }
+
+      return null;
+    }
+  }
+
+  public BackendError getNewDbFilePath() {
     // if the user isn't logged in, return BackendError
     if (this.fetchedUser == null) {
       return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn,
@@ -143,7 +188,13 @@ public class LoginUser {
     // now the YAPM directory exists, just need to generate a suitable name for the
     // db file
     dbFileName = this.username + getRandomNum() + ".db";
-    this.dbPath = new File(dbStoreDirectory, dbFileName).toString();
+    String newDbPath = new File(dbStoreDirectory, dbFileName).toString();
+
+    BackendError response = createLocalDb(newDbPath);
+    if (response != null) {
+      return response;
+    }
+    this.dbPath = newDbPath;
 
     return null;
   }
