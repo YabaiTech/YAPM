@@ -46,10 +46,7 @@ tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
     testLogging {
-<<<<<<< HEAD
       showStandardStreams = true
-=======
         showStandardStreams = true
->>>>>>> main
     }
 }
