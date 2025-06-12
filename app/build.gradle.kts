@@ -23,7 +23,8 @@ dependencies {
 
     // This dependency is used by the application.
     implementation(libs.guava)
-
+    implementation("org.xerial:sqlite-jdbc:3.50.1.0");
+    
     // The following are
     // groupId:     com.formdev
     // artifactId:  flatlaf-intellij-themes
@@ -47,4 +48,7 @@ application {
 tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
+    testLogging {
+        showStandardStreams = true
+    }
 }
