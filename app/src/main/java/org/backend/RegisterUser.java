@@ -61,7 +61,17 @@ public class RegisterUser {
   }
 
   private boolean isValidEmail(String email) {
-    // placeholder
+    String[] emailsParts = email.split("@");
+    if (emailsParts.length != 2 || emailsParts[0].length() == 0 ||
+        emailsParts[1].length() == 0) {
+      return false;
+    }
+
+    String[] urlParts = emailsParts[1].split("\\.");
+    if (urlParts.length < 2) {
+      return false;
+    }
+
     return true;
   }
 
