@@ -17,6 +17,7 @@ public class RegisterUser {
   private String email;
   private String plaintextPassword;
   private String hashedPassword;
+  private String hashSaltBase64;
 
   public RegisterUser() {
   }
@@ -178,10 +179,8 @@ public class RegisterUser {
   }
 
   public String getValidDbFilePath() {
-    // If in Linux, store in `/home/<<current_user>>`
-    // If in Window, store in the documents folder
-    // Other OS, store it in the `pwd = present working directory`
-
+    // the db file will be stored in the `YAPM` directory inside the user's home
+    // directory in their OS
     String os = System.getProperty("os.name");
     String homeDir = System.getProperty("user.home");
     String dbStoreDirectory;
@@ -224,6 +223,7 @@ public class RegisterUser {
       factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
       hash = factory.generateSecret(spec).getEncoded();
 
+      this.hashSaltBase64 = Base64.getEncoder().encodeToString(salt);
       this.hashedPassword = Base64.getEncoder().encodeToString(hash);
     } catch (Exception e) {
       System.err.println(
@@ -245,7 +245,8 @@ public class RegisterUser {
 
     try {
       String dbFilePath = getValidDbFilePath();
-      db.addUser(this.username, this.email, this.hashedPassword, dbFilePath, System.currentTimeMillis());
+      db.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, dbFilePath,
+          System.currentTimeMillis());
     } catch (Exception e) {
       return new BackendError(BackendError.AllErrorCodes.DbTransactionError, "Failed to add user to the database",
           "register()");

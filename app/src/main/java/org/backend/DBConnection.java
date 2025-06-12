@@ -16,17 +16,19 @@ class DBConnection {
     }
   }
 
-  public void addUser(String username, String email, String hashedPassword, String dbFilePath, long lastUnixTimestamp)
+  public void addUser(String username, String email, String hashedPassword, String saltB64, String dbFilePath,
+      long lastUnixTimestamp)
       throws SQLException {
-    String query = "INSERT INTO master_users (username, email, hashed_password, pwd_db_path, last_logged_in) VALUES (?,?,?,?,?)";
+    String query = "INSERT INTO `master_users_table` (username, email, hashed_password, salt, pwd_db_path, last_logged_in) VALUES (?,?,?,?,?,?)";
 
     PreparedStatement ps = con.prepareStatement(query);
 
     ps.setString(1, username);
     ps.setString(2, email);
     ps.setString(3, hashedPassword);
-    ps.setString(4, dbFilePath);
-    ps.setLong(5, lastUnixTimestamp);
+    ps.setString(4, saltB64);
+    ps.setString(5, dbFilePath);
+    ps.setLong(6, lastUnixTimestamp);
 
     int opStat = ps.executeUpdate();
 
@@ -38,7 +40,7 @@ class DBConnection {
   }
 
   public UserInfo getUserInfo(String username) throws SQLException {
-    String query = "SELECT * FROM `master_users` WHERE `username`=?";
+    String query = "SELECT * FROM `master_users_table` WHERE `username`=?";
 
     PreparedStatement ps = con.prepareStatement(query);
 
@@ -51,16 +53,16 @@ class DBConnection {
       fetchedUser.username = res.getString("username");
       fetchedUser.email = res.getString("email");
       fetchedUser.hashedPassword = res.getString("hashed_password");
+      fetchedUser.salt = res.getString("salt");
       fetchedUser.passwordDbPath = res.getString("pwd_db_path");
       fetchedUser.lastLoggedInTime = res.getLong("last_logged_in");
-
     }
 
     return fetchedUser;
   }
 
   public boolean updateLastLoginTime(String username, long time) throws SQLException {
-    String query = "UPDATE `master_users` SET `last_logged_in`=? WHERE `username`=?";
+    String query = "UPDATE `master_users_table` SET `last_logged_in`=? WHERE `username`=?";
 
     PreparedStatement ps = con.prepareStatement(query);
     ps.setLong(1, time);

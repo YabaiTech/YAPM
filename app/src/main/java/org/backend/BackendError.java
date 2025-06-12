@@ -19,7 +19,13 @@ public class BackendError {
     PasswordNotProvided,
     HashedPasswordNotGenerated,
 
-    InvalidLoginCredentials
+    InvalidLoginCredentials,
+
+    DbFileDoesNotExist,
+
+    UserNotLoggedIn,
+
+    FileSystemError,
   }
 
   private AllErrorCodes errorCode;

@@ -33,7 +33,8 @@ class DBConnectionTest {
     assert (db != null);
 
     try {
-      db.addUser("ninja" + randNum, "ninja@gmail.com" + randNum, "meh" + randNum, "/home/ninja" + randNum,
+      db.addUser("test" + randNum, "test@gmail.com" + randNum, "test" + randNum, "my_test_salt",
+          "/home/ninja" + randNum,
           System.currentTimeMillis());
     } catch (Exception e) {
       throw new UnknownError("Failed to add user to DB: " + e.toString());
