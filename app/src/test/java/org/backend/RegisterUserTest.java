@@ -99,9 +99,9 @@ class RegisterUserTest {
     // generate a random number from 1 to 90,000
     int randNum = getRandomNum();
 
-    BackendError usrRes = reg.setUsername("dipta" + randNum);
-    BackendError emailRes = reg.setEmail("dipta@gmail.com" + randNum);
-    BackendError pwdRes = reg.setPassword("xYZ123#!" + randNum);
+    BackendError usrRes = reg.setUsername("anindya" + randNum);
+    BackendError emailRes = reg.setEmail("and@gmail.com" + randNum);
+    BackendError pwdRes = reg.setPassword("xYZ123#!");
     assertNull(usrRes);
     assertNull(emailRes);
     assertNull(pwdRes);

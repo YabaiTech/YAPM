@@ -3,13 +3,14 @@ package org.backend;
 import org.vault.*;
 
 import java.io.File;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.Base64;
-import java.util.Random;
+import java.util.UUID;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -21,6 +22,7 @@ public class RegisterUser {
   private String plaintextPassword;
   private String hashedPassword;
   private String hashSaltBase64;
+  private String localDbFilePath;
 
   public RegisterUser(DBConnection db) {
     this.dbOps = new DBOperations(db);
@@ -187,17 +189,13 @@ public class RegisterUser {
     return null;
   }
 
-  private int getRandomNum() {
-    // generate a random number from 1 to 90,000
-    final int MIN = 1;
-    final int MAX = 90000;
-    Random rand = new Random();
-    int randNum = rand.nextInt(MAX - MIN) + MIN;
+  private String getRandomUUID() {
+    String randUUID = UUID.randomUUID().toString();
 
-    return randNum;
+    return randUUID;
   }
 
-  private String getDbFilePath() {
+  private String getDbFilePath() throws Exception {
     // the db file will be stored in the `YAPM` directory inside the user's home
     // directory in their OS
     String os = System.getProperty("os.name");
@@ -217,13 +215,14 @@ public class RegisterUser {
         System.out.println("[RegisterUser] Created the YAPM directory");
       } else {
         System.err.println("[RegisterUser] Failed to create the YAPM directory");
-        System.exit(1);
+
+        throw new FileSystemException("[RegisterUser.getDbFilePath] Failed to create the YAPM directory");
       }
     }
 
     // now the YAPM directory exists, just need to generate a suitable name for the
     // db file
-    dbFileName = this.username + getRandomNum() + ".db";
+    dbFileName = this.username + getRandomUUID() + ".db";
     String dbPath = new File(dbStoreDirectory, dbFileName).toString();
 
     return dbPath;
@@ -319,18 +318,23 @@ public class RegisterUser {
           "[RegisterUser.register] A user is already registered using that email");
     }
 
-    String dbFilePath = getDbFilePath();
-    response = createLocalDb(dbFilePath);
-    if (response != null) {
-      return response;
+    try {
+      this.localDbFilePath = getDbFilePath();
+      response = createLocalDb(this.localDbFilePath);
+      if (response != null) {
+        return response;
+      }
+    } catch (Exception e) {
+      return new BackendError(BackendError.ErrorTypes.FailedToCreateDbDir,
+          "[RegisterUser.register] Failed to create the YAPM directory. Given exception: " + e.toString());
     }
 
     try {
-      this.dbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, dbFilePath,
+      this.dbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, this.localDbFilePath,
           System.currentTimeMillis());
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
-          "[RegisterUser.register] Failed to add user to the database");
+          "[RegisterUser.register] Failed to add user to the database. Given exception: " + e.toString());
     }
 
     return null;

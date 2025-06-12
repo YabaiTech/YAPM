@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.spec.KeySpec;
 import java.util.Base64;
-import java.util.Random;
+import java.util.UUID;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -43,7 +43,7 @@ public class LoginUser {
       }
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
-          "[LoginUser.login] Failed to get master user info from database");
+          "[LoginUser.login] Failed to get master user info from database. Given exception: " + e.toString());
     }
 
     generatePasswordHash();
@@ -125,14 +125,10 @@ public class LoginUser {
     return null;
   }
 
-  private int getRandomNum() {
-    // generate a random number from 1 to 90,000
-    final int MIN = 1;
-    final int MAX = 90000;
-    Random rand = new Random();
-    int randNum = rand.nextInt(MAX - MIN) + MIN;
+  private String getRandomUUID() {
+    String randUUID = UUID.randomUUID().toString();
 
-    return randNum;
+    return randUUID;
   }
 
   private BackendError createLocalDb(String dbPath) {
@@ -187,7 +183,7 @@ public class LoginUser {
 
     // now the YAPM directory exists, just need to generate a suitable name for the
     // db file
-    dbFileName = this.username + getRandomNum() + ".db";
+    dbFileName = this.username + getRandomUUID() + ".db";
     String newDbPath = new File(dbStoreDirectory, dbFileName).toString();
 
     BackendError response = createLocalDb(newDbPath);

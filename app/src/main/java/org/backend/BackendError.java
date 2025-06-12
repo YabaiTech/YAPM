@@ -23,6 +23,8 @@ public class BackendError {
     UsernameAlreadyExists,
     EmailAlreadyExists,
 
+    FailedToCreateDbDir,
+
     InvalidLoginCredentials,
 
     DbFileDoesNotExist,
