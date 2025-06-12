@@ -12,6 +12,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class LoginUser {
+  private DBOperations dbOps;
   private String username;
   private String email;
   private String plaintextPassword;
@@ -19,17 +20,17 @@ public class LoginUser {
   private String dbPath;
   private UserInfo fetchedUser;
 
-  public LoginUser(String uname, String email, String pwd) {
+  public LoginUser(DBConnection db, String uname, String email, String pwd) {
+    this.dbOps = new DBOperations(db);
+
     this.username = uname;
     this.email = email;
     this.plaintextPassword = pwd;
   }
 
   public BackendError login() {
-    DBConnection db = new DBConnection();
-
     try {
-      this.fetchedUser = db.getUserInfo(this.username);
+      this.fetchedUser = this.dbOps.getUserInfo(this.username);
 
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
@@ -47,7 +48,7 @@ public class LoginUser {
 
     // successful login; now decrypt the local db file
     try {
-      db.updateLastLoginTime(this.username, System.currentTimeMillis());
+      this.dbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
     } catch (Exception e) {
       // it's ok even if it fails to update. Just let it know in the logs
       System.err.println("[LoginUser.login] Failed to update the last login time: " + e.toString());

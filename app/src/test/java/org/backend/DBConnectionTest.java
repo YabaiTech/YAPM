@@ -26,6 +26,7 @@ class DBConnectionTest {
   @Test
   void addUserToDb() {
     DBConnection db = new DBConnection();
+    DBOperations ops = new DBOperations(db);
 
     // generate a random number from 1 to 90,000
     int randNum = getRandomNum();
@@ -33,7 +34,7 @@ class DBConnectionTest {
     assert (db != null);
 
     try {
-      db.addUser("test" + randNum, "test@gmail.com" + randNum, "test" + randNum, "my_test_salt",
+      ops.addUser("test" + randNum, "test@gmail.com" + randNum, "test" + randNum, "my_test_salt",
           "/home/ninja" + randNum,
           System.currentTimeMillis());
     } catch (Exception e) {

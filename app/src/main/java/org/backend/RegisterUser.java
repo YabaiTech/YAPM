@@ -13,13 +13,15 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class RegisterUser {
+  private DBOperations dbOps;
   private String username;
   private String email;
   private String plaintextPassword;
   private String hashedPassword;
   private String hashSaltBase64;
 
-  public RegisterUser() {
+  public RegisterUser(DBConnection db) {
+    this.dbOps = new DBOperations(db);
   }
 
   public BackendError setUsername(String uname) {
@@ -255,11 +257,9 @@ public class RegisterUser {
       return response;
     }
 
-    DBConnection db = new DBConnection();
-
     try {
       String dbFilePath = getValidDbFilePath();
-      db.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, dbFilePath,
+      this.dbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, dbFilePath,
           System.currentTimeMillis());
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,

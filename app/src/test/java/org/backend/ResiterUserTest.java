@@ -5,7 +5,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Random;
 
-class AppTest {
+class RegisterUserTest {
+  DBConnection db = new DBConnection();
 
   int getRandomNum() {
     // generate a random number from 1 to 90,000
@@ -19,7 +20,7 @@ class AppTest {
 
   @Test
   void properUsernameGetsAccepted() {
-    RegisterUser reg = new RegisterUser();
+    RegisterUser reg = new RegisterUser(this.db);
     BackendError response = reg.setUsername("dipta123");
 
     assertNull(response);
@@ -27,7 +28,7 @@ class AppTest {
 
   @Test
   void properPasswordGetsAccepted() {
-    RegisterUser reg = new RegisterUser();
+    RegisterUser reg = new RegisterUser(this.db);
     BackendError response = reg.setPassword("aBc123#!");
 
     assertNull(response);
@@ -35,7 +36,7 @@ class AppTest {
 
   @Test
   void nonUTF8PasswordsGetRejected() {
-    RegisterUser reg = new RegisterUser();
+    RegisterUser reg = new RegisterUser(this.db);
     BackendError response = reg.setPassword("🙂aBc123#!");
 
     BackendError.ErrorTypes expected = BackendError.ErrorTypes.PasswordContainsUnallowedChars;
@@ -45,7 +46,7 @@ class AppTest {
 
   @Test
   void passwordsWithoutLowercaseGetsRejected() {
-    RegisterUser reg = new RegisterUser();
+    RegisterUser reg = new RegisterUser(this.db);
     BackendError response = reg.setPassword("XYZ123#!");
 
     BackendError.ErrorTypes expected = BackendError.ErrorTypes.PasswordNeedsAtleast1Lowercase;
@@ -55,7 +56,7 @@ class AppTest {
 
   @Test
   void addsUserIfEverythingIsValid() {
-    RegisterUser reg = new RegisterUser();
+    RegisterUser reg = new RegisterUser(this.db);
 
     // generate a random number from 1 to 90,000
     int randNum = getRandomNum();
