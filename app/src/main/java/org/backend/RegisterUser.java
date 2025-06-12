@@ -222,7 +222,9 @@ public class RegisterUser {
     // now the YAPM directory exists, just need to generate a suitable name for the
     // db file
     dbFileName = this.username + getRandomNum() + ".db";
-    return new File(dbStoreDirectory, dbFileName).toString();
+    String dbPath = new File(dbStoreDirectory, dbFileName).toString();
+
+    return dbPath;
   }
 
   private void generatePasswordHash() {
