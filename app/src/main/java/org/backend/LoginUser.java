@@ -32,7 +32,11 @@ public class LoginUser {
       this.fetchedUser = db.getUserInfo(this.username);
 
     } catch (Exception e) {
+<<<<<<< HEAD
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+=======
+      return new BackendError(BackendError.AllErrorCodes.DbTransactionError,
+>>>>>>> refs/remotes/origin/basic-actions
           "[LoginUser.login] Failed to get user info from database");
     }
 
@@ -41,7 +45,11 @@ public class LoginUser {
         || (!this.email.equals(this.fetchedUser.email))) {
       // failed to log in
       this.fetchedUser = null;
+<<<<<<< HEAD
       return new BackendError(BackendError.ErrorTypes.InvalidLoginCredentials,
+=======
+      return new BackendError(BackendError.AllErrorCodes.InvalidLoginCredentials,
+>>>>>>> refs/remotes/origin/basic-actions
           "[LoginUser.login] Login credentials don't match");
     }
 
@@ -84,13 +92,21 @@ public class LoginUser {
   public BackendError verifyDbFilePath() {
     // if the user isn't logged in, return BackendError
     if (this.fetchedUser == null) {
+<<<<<<< HEAD
       return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn,
+=======
+      return new BackendError(BackendError.AllErrorCodes.UserNotLoggedIn,
+>>>>>>> refs/remotes/origin/basic-actions
           "[LoginUser.verifyDbFilePath] User not logged in");
     }
     // verify if the Db file is stored in the path saved in the DB
     Path dirPath = Paths.get(this.fetchedUser.passwordDbPath);
     if (!Files.exists(dirPath)) {
+<<<<<<< HEAD
       return new BackendError(BackendError.ErrorTypes.DbFileDoesNotExist,
+=======
+      return new BackendError(BackendError.AllErrorCodes.DbFileDoesNotExist,
+>>>>>>> refs/remotes/origin/basic-actions
           "[LoginUser.verifyDbFilePath] The database file does not exist in the saved directory");
     }
 
@@ -110,7 +126,11 @@ public class LoginUser {
   public BackendError generateNewDbFile() {
     // if the user isn't logged in, return BackendError
     if (this.fetchedUser == null) {
+<<<<<<< HEAD
       return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn,
+=======
+      return new BackendError(BackendError.AllErrorCodes.UserNotLoggedIn,
+>>>>>>> refs/remotes/origin/basic-actions
           "[LoginUser.verifyDbFilePath] User not logged in");
     }
 
@@ -134,7 +154,11 @@ public class LoginUser {
       } else {
         System.err.println("[RegisterUser] Failed to create the YAPM directory");
 
+<<<<<<< HEAD
         return new BackendError(BackendError.ErrorTypes.FileSystemError,
+=======
+        return new BackendError(BackendError.AllErrorCodes.FileSystemError,
+>>>>>>> refs/remotes/origin/basic-actions
             "[LoginUser.generateNewDbFile] Failed to create the YAPM directory");
       }
     }
