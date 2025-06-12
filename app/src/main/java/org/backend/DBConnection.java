@@ -2,10 +2,10 @@ package org.backend;
 
 import java.sql.*;
 
-class DBConnection {
+public class DBConnection {
   public Connection con;
 
-  DBConnection() {
+  public DBConnection() {
     try {
       con = DriverManager.getConnection(EnvVars.DATABASE_URL, EnvVars.DATABASE_USER, EnvVars.DATABASE_PASSWORD);
     } catch (Exception e) {

@@ -42,6 +42,7 @@ public class DBOperations {
     ResultSet res = ps.executeQuery();
 
     UserInfo fetchedUser = new UserInfo();
+    fetchedUser.lastLoggedInTime = -1; // sentinel value
 
     if (res.next()) {
       fetchedUser.username = res.getString("username");

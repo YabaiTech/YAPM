@@ -20,6 +20,8 @@ public class BackendError {
     HashedPasswordNotGenerated,
     SaltForHashNotGenerated,
 
+    UsernameAlreadyExists,
+
     InvalidLoginCredentials,
 
     DbFileDoesNotExist,
@@ -27,6 +29,8 @@ public class BackendError {
     UserNotLoggedIn,
 
     FileSystemError,
+
+    LocalDBCreationFailed,
   }
 
   private final ErrorTypes errorType;

@@ -1,5 +1,7 @@
 package org.backend;
 
+import org.vault.*;
+
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -195,7 +197,7 @@ public class RegisterUser {
     return randNum;
   }
 
-  public String getValidDbFilePath() {
+  private String getDbFilePath() {
     // the db file will be stored in the `YAPM` directory inside the user's home
     // directory in their OS
     String os = System.getProperty("os.name");
@@ -225,6 +227,38 @@ public class RegisterUser {
     String dbPath = new File(dbStoreDirectory, dbFileName).toString();
 
     return dbPath;
+  }
+
+  private BackendError createLocalDb(String dbPath) {
+    try (VaultManager vm = new VaultManager(dbPath, this.plaintextPassword)) {
+      VaultStatus resp = vm.connectToDB();
+      if (resp != VaultStatus.DBConnectionSuccess) {
+        return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
+            "[RegisterUser.createLocalDb] Failed to create vault. Provided error: " + resp);
+      }
+
+      resp = vm.createVault();
+      if (resp != VaultStatus.DBCreateVaultSuccess) {
+        return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
+            "[RegisterUser.createLocalDb] Failed to create vault. Provided error: " + resp);
+      }
+
+      return null;
+    }
+  }
+
+  private boolean doesUserExist(String username) {
+    try {
+      UserInfo fetchedUser = dbOps.getUserInfo(username);
+      // check the sentinel value to decide whether the user exists
+      if (fetchedUser.lastLoggedInTime != -1) {
+        return true;
+      }
+
+      return false;
+    } catch (Exception e) {
+      return false;
+    }
   }
 
   private void generatePasswordHash() {
@@ -259,8 +293,19 @@ public class RegisterUser {
       return response;
     }
 
+    // check if there is already a user with this username
+    if (doesUserExist(this.username)) {
+      return new BackendError(BackendError.ErrorTypes.UsernameAlreadyExists,
+          "[RegisterUser.register] A user with that username already exists");
+    }
+
+    String dbFilePath = getDbFilePath();
+    response = createLocalDb(dbFilePath);
+    if (response != null) {
+      return response;
+    }
+
     try {
-      String dbFilePath = getValidDbFilePath();
       this.dbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, dbFilePath,
           System.currentTimeMillis());
     } catch (Exception e) {
