@@ -1,4 +1,4 @@
-package org.YAPM;
+package org.vault;
 
 public class VaultConst {
   public static final String ENCRYPTION_ALGO = "AES/CBC/PKCS5Padding";

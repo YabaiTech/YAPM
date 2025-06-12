@@ -1,4 +1,4 @@
-package org.YAPM;
+package org.vault;
 
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

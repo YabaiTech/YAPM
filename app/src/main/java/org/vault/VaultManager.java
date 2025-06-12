@@ -1,4 +1,4 @@
-package org.YAPM;
+package org.vault;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

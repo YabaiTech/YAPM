@@ -1,4 +1,4 @@
-package org.YAPM;
+package org.vault;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

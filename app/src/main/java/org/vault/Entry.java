@@ -1,4 +1,4 @@
-package org.YAPM;
+package org.vault;
 
 public class Entry {
   private final String url;
