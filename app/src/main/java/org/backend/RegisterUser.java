@@ -28,11 +28,7 @@ public class RegisterUser {
       return null;
     }
 
-<<<<<<< HEAD
     return new BackendError(BackendError.ErrorTypes.InvalidUserName,
-=======
-    return new BackendError(BackendError.AllErrorCodes.InvalidUserName,
->>>>>>> refs/remotes/origin/basic-actions
         "[RegisterUser.setUsername] Username contains characters that are not alphabets or numbers");
   }
 
@@ -61,11 +57,7 @@ public class RegisterUser {
       return null;
     }
 
-<<<<<<< HEAD
     return new BackendError(BackendError.ErrorTypes.InvalidEmail, "[RegisterUser.setEmail] Invalid email provided");
-=======
-    return new BackendError(BackendError.AllErrorCodes.InvalidEmail, "[RegisterUser.setEmail] Invalid email provided");
->>>>>>> refs/remotes/origin/basic-actions
   }
 
   private boolean isValidEmail(String email) {
@@ -104,11 +96,7 @@ public class RegisterUser {
     if (pwd.length() >= 8) {
       isAtleast8Chars = true;
     } else {
-<<<<<<< HEAD
       return new BackendError(BackendError.ErrorTypes.PasswordNeedsToBeAtleast8Chars,
-=======
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsToBeAtleast8Chars,
->>>>>>> refs/remotes/origin/basic-actions
           errorTag + "Password needs to be at least 8 characters long");
     }
 
@@ -132,11 +120,7 @@ public class RegisterUser {
         hasAtleast1Special = true;
       } else {
         // contains characters that are outside the allowed characters
-<<<<<<< HEAD
         return new BackendError(BackendError.ErrorTypes.PasswordContainsUnallowedChars,
-=======
-        return new BackendError(BackendError.AllErrorCodes.PasswordContainsUnallowedChars,
->>>>>>> refs/remotes/origin/basic-actions
             errorTag
                 + "Password can only have characters that are lowercase or uppercase alphabets, numbers, special characters");
       }
@@ -147,7 +131,6 @@ public class RegisterUser {
     }
 
     if (!hasAtleast1Lowercase) {
-<<<<<<< HEAD
       return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1Lowercase,
           errorTag + "Password needs to have at least 1 lowercase letter");
     }
@@ -161,21 +144,6 @@ public class RegisterUser {
     }
     if (!hasAtleast1Special) {
       return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1SpecialChar,
-=======
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsAtleast1Lowercase,
-          errorTag + "Password needs to have at least 1 lowercase letter");
-    }
-    if (!hasAtleast1Uppercase) {
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsAtleast1Uppercase,
-          errorTag + "Password needs to have at least 1 uppercase letter");
-    }
-    if (!hasAtleast1Number) {
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsAtleast1Number,
-          errorTag + "Password needs to have at least 1 number");
-    }
-    if (!hasAtleast1Special) {
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsAtleast1SpecialChar,
->>>>>>> refs/remotes/origin/basic-actions
           errorTag + "Password needs to have at least 1 special character");
     }
 
@@ -281,11 +249,7 @@ public class RegisterUser {
       db.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, dbFilePath,
           System.currentTimeMillis());
     } catch (Exception e) {
-<<<<<<< HEAD
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
-=======
-      return new BackendError(BackendError.AllErrorCodes.DbTransactionError,
->>>>>>> refs/remotes/origin/basic-actions
           "[RegisterUser.register] Failed to add user to the database");
     }
 
