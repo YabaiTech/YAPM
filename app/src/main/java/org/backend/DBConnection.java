@@ -7,11 +7,13 @@ class DBConnection {
 
   DBConnection() {
     try {
-      con = DriverManager.getConnection("jdbc:mysql://localhost:3306/YAPM_TEST2", "root", "");
+      con = DriverManager.getConnection(EnvVars.DATABASE_URL, EnvVars.DATABASE_USER, EnvVars.DATABASE_PASSWORD);
 
       System.out.println("Connection established successfully!");
     } catch (Exception e) {
-      System.err.println("ERROR: Failed to connect to DB!");
+      System.err.println("[DBConnection.DBConnection] Failed to connect to DB: ");
+      e.printStackTrace();
+
       System.exit(1);
     }
   }
@@ -19,7 +21,8 @@ class DBConnection {
   public void addUser(String username, String email, String hashedPassword, String saltB64, String dbFilePath,
       long lastUnixTimestamp)
       throws SQLException {
-    String query = "INSERT INTO `master_users_table` (username, email, hashed_password, salt, pwd_db_path, last_logged_in) VALUES (?,?,?,?,?,?)";
+    String query = "INSERT INTO `" + EnvVars.MASTER_USER_TABLE
+        + "` (username, email, hashed_password, salt, pwd_db_path, last_logged_in) VALUES (?,?,?,?,?,?)";
 
     PreparedStatement ps = con.prepareStatement(query);
 
@@ -40,7 +43,7 @@ class DBConnection {
   }
 
   public UserInfo getUserInfo(String username) throws SQLException {
-    String query = "SELECT * FROM `master_users_table` WHERE `username`=?";
+    String query = "SELECT * FROM `" + EnvVars.MASTER_USER_TABLE + "` WHERE `username`=?";
 
     PreparedStatement ps = con.prepareStatement(query);
 
@@ -62,7 +65,7 @@ class DBConnection {
   }
 
   public boolean updateLastLoginTime(String username, long time) throws SQLException {
-    String query = "UPDATE `master_users_table` SET `last_logged_in`=? WHERE `username`=?";
+    String query = "UPDATE `" + EnvVars.MASTER_USER_TABLE + "` SET `last_logged_in`=? WHERE `username`=?";
 
     PreparedStatement ps = con.prepareStatement(query);
     ps.setLong(1, time);
