@@ -76,13 +76,13 @@ public class RegisterUser {
   }
 
   public BackendError setPassword(String pwd) {
-    BackendError pwdValidity = isValidPassword(pwd);
-    if (pwdValidity == null) {
+    BackendError pwdProblems = isValidPassword(pwd);
+    if (pwdProblems == null) {
       this.plaintextPassword = pwd;
       return null;
     }
 
-    return pwdValidity;
+    return pwdProblems;
   }
 
   /*
@@ -157,7 +157,7 @@ public class RegisterUser {
           errorTag + "Password needs to have at least 1 special character");
     }
 
-    return null; // unreachable
+    return null; // Unreachable code. For LSP.
   }
 
   private BackendError isEverythingSet() {
@@ -174,6 +174,10 @@ public class RegisterUser {
     if (this.hashedPassword == null) {
       return new BackendError(BackendError.ErrorTypes.HashedPasswordNotGenerated,
           errorTag + "Hashed password not generated");
+    }
+    if (this.hashSaltBase64 == null) {
+      return new BackendError(BackendError.ErrorTypes.SaltForHashNotGenerated,
+          errorTag + "The salt for the hash is not generated");
     }
 
     return null;
@@ -251,7 +255,6 @@ public class RegisterUser {
       return response;
     }
 
-    // save to the DB
     DBConnection db = new DBConnection();
 
     try {

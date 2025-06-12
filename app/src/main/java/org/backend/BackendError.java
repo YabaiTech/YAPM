@@ -18,6 +18,7 @@ public class BackendError {
     EmailNotProvided,
     PasswordNotProvided,
     HashedPasswordNotGenerated,
+    SaltForHashNotGenerated,
 
     InvalidLoginCredentials,
 
