@@ -32,9 +32,8 @@ public class LoginUser {
       this.fetchedUser = db.getUserInfo(this.username);
 
     } catch (Exception e) {
-      System.err.println("[LoginUser] Failed to get user info from database");
-      return new BackendError(BackendError.AllErrorCodes.DbTransactionError, "Failed to get user info from database",
-          "login");
+      return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+          "[LoginUser.login] Failed to get user info from database");
     }
 
     generatePasswordHash();
@@ -42,15 +41,16 @@ public class LoginUser {
         || (!this.email.equals(this.fetchedUser.email))) {
       // failed to log in
       this.fetchedUser = null;
-      return new BackendError(BackendError.AllErrorCodes.InvalidLoginCredentials, "Login credentials don't match",
-          "LoginUser.login");
+      return new BackendError(BackendError.ErrorTypes.InvalidLoginCredentials,
+          "[LoginUser.login] Login credentials don't match");
     }
 
     // successful login; now decrypt the local db file
     try {
       db.updateLastLoginTime(this.username, System.currentTimeMillis());
     } catch (Exception e) {
-      System.err.println("[LoginUser] Failed to update the last login time: " + e.toString());
+      // it's ok even if it fails to update. Just let it know in the logs
+      System.err.println("[LoginUser.login] Failed to update the last login time: " + e.toString());
     }
 
     return null;
@@ -84,16 +84,14 @@ public class LoginUser {
   public BackendError verifyDbFilePath() {
     // if the user isn't logged in, return BackendError
     if (this.fetchedUser == null) {
-      return new BackendError(BackendError.AllErrorCodes.UserNotLoggedIn,
-          "[LoginUser.verifyDbFilePath] User not logged in",
-          "LoginUser.verifyDbFilePath");
+      return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn,
+          "[LoginUser.verifyDbFilePath] User not logged in");
     }
     // verify if the Db file is stored in the path saved in the DB
     Path dirPath = Paths.get(this.fetchedUser.passwordDbPath);
     if (!Files.exists(dirPath)) {
-      return new BackendError(BackendError.AllErrorCodes.DbFileDoesNotExist,
-          "[LoginUser.verifyDbFilePath] The database file does not exist in the saved directory",
-          "LoginUser.verifyDbFilePath");
+      return new BackendError(BackendError.ErrorTypes.DbFileDoesNotExist,
+          "[LoginUser.verifyDbFilePath] The database file does not exist in the saved directory");
     }
 
     return null;
@@ -112,9 +110,8 @@ public class LoginUser {
   public BackendError generateNewDbFile() {
     // if the user isn't logged in, return BackendError
     if (this.fetchedUser == null) {
-      return new BackendError(BackendError.AllErrorCodes.UserNotLoggedIn,
-          "[LoginUser.verifyDbFilePath] User not logged in",
-          "LoginUser.verifyDbFilePath");
+      return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn,
+          "[LoginUser.verifyDbFilePath] User not logged in");
     }
 
     // the db file will be stored in the `YAPM` directory inside the user's home
@@ -137,8 +134,8 @@ public class LoginUser {
       } else {
         System.err.println("[RegisterUser] Failed to create the YAPM directory");
 
-        return new BackendError(BackendError.AllErrorCodes.FileSystemError,
-            "[LoginUser.generateNewDbFile] Failed to create the YAPM directory", "LoginUser.generateNewDbFile");
+        return new BackendError(BackendError.ErrorTypes.FileSystemError,
+            "[LoginUser.generateNewDbFile] Failed to create the YAPM directory");
       }
     }
 

@@ -28,8 +28,8 @@ public class RegisterUser {
       return null;
     }
 
-    return new BackendError(BackendError.AllErrorCodes.InvalidUserName,
-        "Username contains characters that are not alphabets or numbers", "Backend.setUsername");
+    return new BackendError(BackendError.ErrorTypes.InvalidUserName,
+        "[RegisterUser.setUsername] Username contains characters that are not alphabets or numbers");
   }
 
   /*
@@ -57,7 +57,7 @@ public class RegisterUser {
       return null;
     }
 
-    return new BackendError(BackendError.AllErrorCodes.InvalidEmail, "Invalid email provided", "setEmail");
+    return new BackendError(BackendError.ErrorTypes.InvalidEmail, "[RegisterUser.setEmail] Invalid email provided");
   }
 
   private boolean isValidEmail(String email) {
@@ -85,6 +85,8 @@ public class RegisterUser {
    * 6) No characters are outside the above catagories are allowed
    */
   private BackendError isValidPassword(String pwd) {
+    String errorTag = "[RegisterUser.isValidPassword] ";
+
     boolean isAtleast8Chars = false;
     boolean hasAtleast1Lowercase = false;
     boolean hasAtleast1Uppercase = false;
@@ -94,8 +96,8 @@ public class RegisterUser {
     if (pwd.length() >= 8) {
       isAtleast8Chars = true;
     } else {
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsToBeAtleast8Chars,
-          "Password needs to be at least 8 characters long", "isValidPassword");
+      return new BackendError(BackendError.ErrorTypes.PasswordNeedsToBeAtleast8Chars,
+          errorTag + "Password needs to be at least 8 characters long");
     }
 
     for (int i = 0; i < pwd.length(); i++) {
@@ -118,9 +120,9 @@ public class RegisterUser {
         hasAtleast1Special = true;
       } else {
         // contains characters that are outside the allowed characters
-        return new BackendError(BackendError.AllErrorCodes.PasswordContainsUnallowedChars,
-            "Password can only have characters that are lowercase or uppercase alphabets, numbers, special characters",
-            "isValidPassword");
+        return new BackendError(BackendError.ErrorTypes.PasswordContainsUnallowedChars,
+            errorTag
+                + "Password can only have characters that are lowercase or uppercase alphabets, numbers, special characters");
       }
 
       if (isAtleast8Chars && hasAtleast1Lowercase && hasAtleast1Uppercase && hasAtleast1Number && hasAtleast1Special) {
@@ -129,40 +131,39 @@ public class RegisterUser {
     }
 
     if (!hasAtleast1Lowercase) {
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsAtleast1Lowercase,
-          "Password needs to have at least 1 lowercase letter", "isValidPassword");
+      return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1Lowercase,
+          errorTag + "Password needs to have at least 1 lowercase letter");
     }
     if (!hasAtleast1Uppercase) {
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsAtleast1Uppercase,
-          "Password needs to have at least 1 uppercase letter", "isValidPassword");
+      return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1Uppercase,
+          errorTag + "Password needs to have at least 1 uppercase letter");
     }
     if (!hasAtleast1Number) {
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsAtleast1Number,
-          "Password needs to have at least 1 number", "isValidPassword");
+      return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1Number,
+          errorTag + "Password needs to have at least 1 number");
     }
     if (!hasAtleast1Special) {
-      return new BackendError(BackendError.AllErrorCodes.PasswordNeedsAtleast1SpecialChar,
-          "Password needs to have at least 1 special character", "isValidPassword");
+      return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1SpecialChar,
+          errorTag + "Password needs to have at least 1 special character");
     }
 
     return null; // unreachable
   }
 
   private BackendError isEverythingSet() {
+    String errorTag = "[RegisterUser.isEverythingSet] ";
     if (this.username == null) {
-      return new BackendError(BackendError.AllErrorCodes.UsernameNotProvided, "Username not provided",
-          "isEverythingSet");
+      return new BackendError(BackendError.ErrorTypes.UsernameNotProvided, errorTag + "Username not provided");
     }
     if (this.email == null) {
-      return new BackendError(BackendError.AllErrorCodes.EmailNotProvided, "Email not provided", "isEverythingSet");
+      return new BackendError(BackendError.ErrorTypes.EmailNotProvided, errorTag + "Email not provided");
     }
     if (this.plaintextPassword == null) {
-      return new BackendError(BackendError.AllErrorCodes.PasswordNotProvided, "Password not provided",
-          "isEverythingSet");
+      return new BackendError(BackendError.ErrorTypes.PasswordNotProvided, errorTag + "Password not provided");
     }
     if (this.hashedPassword == null) {
-      return new BackendError(BackendError.AllErrorCodes.HashedPasswordNotGenerated, "Hashed password not generated",
-          "isEverythingSet");
+      return new BackendError(BackendError.ErrorTypes.HashedPasswordNotGenerated,
+          errorTag + "Hashed password not generated");
     }
 
     return null;
@@ -248,8 +249,8 @@ public class RegisterUser {
       db.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, dbFilePath,
           System.currentTimeMillis());
     } catch (Exception e) {
-      return new BackendError(BackendError.AllErrorCodes.DbTransactionError, "Failed to add user to the database",
-          "register()");
+      return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+          "[RegisterUser.register] Failed to add user to the database");
     }
 
     return null;

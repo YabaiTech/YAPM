@@ -1,7 +1,7 @@
 package org.backend;
 
 public class BackendError {
-  public static enum AllErrorCodes {
+  public static enum ErrorTypes {
     DbTransactionError,
 
     InvalidUserName,
@@ -28,25 +28,19 @@ public class BackendError {
     FileSystemError,
   }
 
-  private AllErrorCodes errorCode;
-  private String errorMessage;
-  private String errorCreator;
+  private final ErrorTypes errorType;
+  private final String additionalContext;
 
-  BackendError(AllErrorCodes errCode, String errMsg, String errCreator) {
-    this.errorCode = errCode;
-    this.errorMessage = errMsg;
-    this.errorCreator = errCreator;
+  BackendError(ErrorTypes errCode, String errMsg) {
+    this.errorType = errCode;
+    this.additionalContext = errMsg;
   }
 
-  public AllErrorCodes getErrorCode() {
-    return this.errorCode;
+  public ErrorTypes getErrorCode() {
+    return this.errorType;
   }
 
-  public String getErrorMessage() {
-    return this.errorMessage;
-  }
-
-  public String getErrorCreator() {
-    return this.errorCreator;
+  public String getContext() {
+    return this.additionalContext;
   }
 }
