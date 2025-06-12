@@ -19,7 +19,7 @@ class RegisterUserTest {
   }
 
   @Test
-  void properUsernameGetsAccepted() {
+  void validUsernameGetsAccepted() {
     RegisterUser reg = new RegisterUser(this.db);
     BackendError response = reg.setUsername("dipta123");
 
@@ -27,7 +27,15 @@ class RegisterUserTest {
   }
 
   @Test
-  void properPasswordGetsAccepted() {
+  void invalidUsernameGetsAccepted() {
+    RegisterUser reg = new RegisterUser(this.db);
+    BackendError response = reg.setUsername("atr-ues");
+
+    assertEquals(BackendError.ErrorTypes.InvalidUserName, response.getErrorType());
+  }
+
+  @Test
+  void validPasswordGetsAccepted() {
     RegisterUser reg = new RegisterUser(this.db);
     BackendError response = reg.setPassword("aBc123#!");
 
@@ -35,7 +43,15 @@ class RegisterUserTest {
   }
 
   @Test
-  void nonUTF8PasswordsGetRejected() {
+  void lessThan8CharPasswordsGetRejected() {
+    RegisterUser reg = new RegisterUser(this.db);
+    BackendError response = reg.setPassword("aB9!");
+
+    assertEquals(BackendError.ErrorTypes.PasswordNeedsToBeAtleast8Chars, response.getErrorType());
+  }
+
+  @Test
+  void passwordsWithUnallowedCharsGetRejected() {
     RegisterUser reg = new RegisterUser(this.db);
     BackendError response = reg.setPassword("🙂aBc123#!");
 
@@ -49,9 +65,31 @@ class RegisterUserTest {
     RegisterUser reg = new RegisterUser(this.db);
     BackendError response = reg.setPassword("XYZ123#!");
 
-    BackendError.ErrorTypes expected = BackendError.ErrorTypes.PasswordNeedsAtleast1Lowercase;
-    assert (response != null);
-    assertEquals(expected, response.getErrorType());
+    assertEquals(BackendError.ErrorTypes.PasswordNeedsAtleast1Lowercase, response.getErrorType());
+  }
+
+  @Test
+  void passwordsWithoutUppercaseGetsRejected() {
+    RegisterUser reg = new RegisterUser(this.db);
+    BackendError response = reg.setPassword("xyz123#!");
+
+    assertEquals(BackendError.ErrorTypes.PasswordNeedsAtleast1Uppercase, response.getErrorType());
+  }
+
+  @Test
+  void passwordsWithoutNumberGetsRejected() {
+    RegisterUser reg = new RegisterUser(this.db);
+    BackendError response = reg.setPassword("xyzAbc#!");
+
+    assertEquals(BackendError.ErrorTypes.PasswordNeedsAtleast1Number, response.getErrorType());
+  }
+
+  @Test
+  void passwordsWithoutSpecialCharGetsRejected() {
+    RegisterUser reg = new RegisterUser(this.db);
+    BackendError response = reg.setPassword("xyzAbc123");
+
+    assertEquals(BackendError.ErrorTypes.PasswordNeedsAtleast1SpecialChar, response.getErrorType());
   }
 
   @Test
