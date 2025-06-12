@@ -64,8 +64,7 @@ public class VaultManager {
       throw new IllegalArgumentException("[VaultManager] ERROR: db path or master password is empty.");
     }
     if (!new File(dbPath).exists()) {
-      System.out.println("[VaultManager] ERROR: db doesn't exist.");
-      return null;
+      throw new IllegalStateException("[VaultManager] ERROR: db doesn't exist.");
     }
 
     String url = JDBC_PREFIX + dbPath;
