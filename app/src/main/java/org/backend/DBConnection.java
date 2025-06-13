@@ -22,7 +22,7 @@ public class DBConnection implements AutoCloseable {
       con.close();
     } catch (Exception e) {
       // If it errors, just let it know using a log
-      System.err.println("[DBConnection.close] Error occured while closing the databse connection: " + e.toString());
+      System.err.println("[DBConnection.close] Error occured while closing the databse connection: " + e);
     }
   }
 }
