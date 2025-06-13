@@ -89,11 +89,12 @@ public class VaultManager implements AutoCloseable {
     }
 
     try (PreparedStatement preparedStatement = this.connection
-        .prepareStatement("SELECT url, username, password, iv FROM entries")) {
+        .prepareStatement("SELECT id, url, username, password, iv FROM entries")) {
       String saltB64 = Base64.getEncoder().encodeToString(salt);
       ResultSet resultSet = preparedStatement.executeQuery();
 
       while (resultSet.next()) {
+        int id = resultSet.getInt("id");
         String urlField = resultSet.getString("url");
         String usernameField = resultSet.getString("username");
         String passwdField = resultSet.getString("password");
@@ -109,7 +110,7 @@ public class VaultManager implements AutoCloseable {
           return VaultStatus.DBOpenVaultFailure;
         }
 
-        entries.add(new Entry(urlField, usernameField, plainPasswd));
+        entries.add(new Entry(id, urlField, usernameField, plainPasswd));
       }
 
       this.connection.commit();
