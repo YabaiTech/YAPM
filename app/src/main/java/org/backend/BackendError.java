@@ -1,7 +1,7 @@
 package org.backend;
 
 public class BackendError {
-  public static enum ErrorTypes {
+  public enum ErrorTypes {
     DbTransactionError,
 
     InvalidUserName,
