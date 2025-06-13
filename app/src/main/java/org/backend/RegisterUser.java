@@ -330,8 +330,12 @@ public class RegisterUser {
     }
 
     try {
-      this.dbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, this.localDbFilePath,
+      BackendError resp = this.dbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
+          this.localDbFilePath,
           System.currentTimeMillis());
+      if (resp != null) {
+        return resp;
+      }
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
           "[RegisterUser.register] Failed to add user to the database. Given exception: " + e.toString());

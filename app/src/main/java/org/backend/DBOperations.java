@@ -3,7 +3,7 @@ package org.backend;
 import java.sql.*;
 
 public class DBOperations {
-  private Connection con;
+  private final Connection con;
 
   public DBOperations(DBConnection db) {
     this.con = db.con;
@@ -89,11 +89,7 @@ public class DBOperations {
       ps.setString(2, username);
 
       int opStat = ps.executeUpdate();
-
-      if (opStat == 1) {
-        return true;
-      }
-      return false;
+      return opStat == 1;
     }
   }
 }
