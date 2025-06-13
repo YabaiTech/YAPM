@@ -195,7 +195,7 @@ public class RegisterUser {
     return randUUID;
   }
 
-  private String getDbFilePath() throws Exception {
+  private String getDbFilePath() throws FileSystemException {
     // the db file will be stored in the `YAPM` directory inside the user's home
     // directory in their OS
     String os = System.getProperty("os.name");
