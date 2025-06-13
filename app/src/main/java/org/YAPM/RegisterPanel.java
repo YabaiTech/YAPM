@@ -9,6 +9,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.font.TextAttribute;
 import java.util.Map;
+import org.backend.*;
 
 public class RegisterPanel extends JPanel {
 
@@ -149,10 +150,45 @@ public class RegisterPanel extends JPanel {
         registerButton.setAlignmentX(LEFT_ALIGNMENT);
         registerButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
         registerButton.setPreferredSize(new Dimension(450, 35));
-        registerButton.addActionListener(e -> mainUI.showPage("login"));
+
+        registerButton.addActionListener(e -> {
+            String uname = usernameField.getText().trim();
+            String email = emailField.getText().trim();
+            String pwd = new String(passField.getPassword());
+
+            DBConnection db = new DBConnection();
+            RegisterUser reg = new RegisterUser(db);
+
+            BackendError err;
+
+            err = reg.setUsername(uname);
+            if (err != null) {
+                JOptionPane.showMessageDialog(RegisterPanel.this, "Username error: " + err.getErrorType(), "Registration Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            err = reg.setEmail(email);
+            if (err != null) {
+                JOptionPane.showMessageDialog(RegisterPanel.this, "Email error: " + err.getErrorType(), "Registration Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            err = reg.setPassword(pwd);
+            if (err != null) {
+                JOptionPane.showMessageDialog(RegisterPanel.this, "Password error: " + err.getErrorType(), "Registration Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            err = reg.register();
+            if (err == null) {
+                JOptionPane.showMessageDialog(RegisterPanel.this, "Successfully registered the user!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                mainUI.showPage("login"); // switch to login page on success
+            } else {
+                JOptionPane.showMessageDialog(RegisterPanel.this, "Registration failed: " + err.getErrorType(), "Registration Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
         formPanel.add(registerButton);
-
-
 
         formPanel.add(Box.createVerticalStrut(15));
 

@@ -24,7 +24,7 @@ dependencies {
     // This dependency is used by the application.
     implementation(libs.guava)
 
-    implementation("com.mysql:mysql-connector-j:9.3.0")
+    implementation("com.mysql:mysql-connector-j:8.0.33")
     implementation("org.xerial:sqlite-jdbc:3.50.1.0");
 
     // The following are
