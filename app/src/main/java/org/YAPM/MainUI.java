@@ -11,7 +11,11 @@ public class MainUI extends JFrame {
         setTitle("YAPM");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(600, 700);
+        setExtendedState(JFrame.MAXIMIZED_BOTH);
+//        setUndecorated(true);
+
         setLocationRelativeTo(null);
+
 
         cardLayout = new CardLayout();
         cardPanel = new JPanel(cardLayout);
