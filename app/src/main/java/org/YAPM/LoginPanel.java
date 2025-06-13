@@ -88,6 +88,53 @@ public class LoginPanel extends JPanel {
         formPanel.add(passField);
         formPanel.add(Box.createVerticalStrut(20));
 
+        // Add this after passField and the vertical strut, before loginButton in formPanel
+
+        JLabel rulesLabel = new JLabel("View username and password rules");
+        rulesLabel.setForeground(accentColor);
+        rulesLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        rulesLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        rulesLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        rulesLabel.addMouseListener(new MouseAdapter() {
+            Font originalFont = rulesLabel.getFont();
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                JOptionPane.showMessageDialog(
+                        LoginPanel.this,
+                        """
+                        Username/Email Rules:
+                        - Cannot be empty
+                        
+                        Password Rules:
+                        - Minimum 8 characters
+                        - Include uppercase and lowercase letters
+                        - Include digits and special characters
+                        """,
+                        "Login Rules",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+            }
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public void mouseEntered(MouseEvent e) {
+                Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) originalFont.getAttributes();
+                attributes.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON);
+                rulesLabel.setFont(originalFont.deriveFont(attributes));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                rulesLabel.setFont(originalFont);
+            }
+        });
+
+        formPanel.add(rulesLabel);
+        formPanel.add(Box.createVerticalStrut(10));
+
+
         // Login Button
         JButton loginButton = new JButton("Login");
         loginButton.setAlignmentX(LEFT_ALIGNMENT);
