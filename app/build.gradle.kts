@@ -23,6 +23,8 @@ dependencies {
 
     // This dependency is used by the application.
     implementation(libs.guava)
+
+    implementation("com.mysql:mysql-connector-j:9.3.0")
     implementation("org.xerial:sqlite-jdbc:3.50.1.0");
 
     // The following are
@@ -49,6 +51,6 @@ tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
     testLogging {
-        showStandardStreams = true
+      showStandardStreams = true
     }
 }

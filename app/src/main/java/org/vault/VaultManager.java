@@ -9,7 +9,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Base64;
 
-public class VaultManager {
+public class VaultManager implements AutoCloseable {
   private final String JDBC_PREFIX = "jdbc:sqlite:";
   private final String VERIFICATION_TEXT = "vault_verification";
   private final String dbPath;
@@ -19,6 +19,11 @@ public class VaultManager {
   public VaultManager(String dbPath, String masterPasswd) {
     this.dbPath = dbPath;
     this.masterPasswd = masterPasswd;
+  }
+
+  @Override
+  public void close() {
+    closeDB();
   }
 
   public VaultStatus createVault() {
@@ -84,11 +89,12 @@ public class VaultManager {
     }
 
     try (PreparedStatement preparedStatement = this.connection
-        .prepareStatement("SELECT url, username, password, iv FROM entries")) {
+        .prepareStatement("SELECT id, url, username, password, iv FROM entries")) {
       String saltB64 = Base64.getEncoder().encodeToString(salt);
       ResultSet resultSet = preparedStatement.executeQuery();
 
       while (resultSet.next()) {
+        int id = resultSet.getInt("id");
         String urlField = resultSet.getString("url");
         String usernameField = resultSet.getString("username");
         String passwdField = resultSet.getString("password");
@@ -104,7 +110,7 @@ public class VaultManager {
           return VaultStatus.DBOpenVaultFailure;
         }
 
-        entries.add(new Entry(urlField, usernameField, plainPasswd));
+        entries.add(new Entry(id, urlField, usernameField, plainPasswd));
       }
 
       this.connection.commit();
