@@ -14,7 +14,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class LoginUser {
-  private DBOperations dbOps;
+  private final DBOperations dbOps;
   private String username;
   private String email;
   private String plaintextPassword;

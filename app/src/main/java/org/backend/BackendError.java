@@ -39,8 +39,8 @@ public class BackendError {
   private final ErrorTypes errorType;
   private final String additionalContext;
 
-  BackendError(ErrorTypes errCode, String errMsg) {
-    this.errorType = errCode;
+  BackendError(ErrorTypes errType, String errMsg) {
+    this.errorType = errType;
     this.additionalContext = errMsg;
   }
 
