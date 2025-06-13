@@ -9,7 +9,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Base64;
 
-public class VaultManager {
+public class VaultManager implements AutoCloseable {
   private final String JDBC_PREFIX = "jdbc:sqlite:";
   private final String VERIFICATION_TEXT = "vault_verification";
   private final String dbPath;
@@ -19,6 +19,11 @@ public class VaultManager {
   public VaultManager(String dbPath, String masterPasswd) {
     this.dbPath = dbPath;
     this.masterPasswd = masterPasswd;
+  }
+
+  @Override
+  public void close() {
+    closeDB();
   }
 
   public VaultStatus createVault() {
