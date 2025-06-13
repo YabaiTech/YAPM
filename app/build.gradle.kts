@@ -26,6 +26,11 @@ dependencies {
 
     implementation("com.mysql:mysql-connector-j:9.3.0")
     implementation("org.xerial:sqlite-jdbc:3.50.1.0");
+
+    // The following are
+    // groupId:     com.formdev
+    // artifactId:  flatlaf-intellij-themes
+    // version:     3.6 (the current latest version)
     implementation("com.formdev:flatlaf:3.6")
     implementation("com.formdev:flatlaf-intellij-themes:3.6")
 }
@@ -47,6 +52,5 @@ tasks.named<Test>("test") {
     useJUnitPlatform()
     testLogging {
       showStandardStreams = true
-        showStandardStreams = true
     }
 }
