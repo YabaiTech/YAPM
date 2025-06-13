@@ -1,4 +1,5 @@
 package org.YAPM;
+import org.backend.*;
 
 import com.formdev.flatlaf.FlatClientProperties;
 
@@ -140,7 +141,58 @@ public class LoginPanel extends JPanel {
         loginButton.setAlignmentX(LEFT_ALIGNMENT);
         loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
         loginButton.setPreferredSize(new Dimension(450, 35));
-        loginButton.addActionListener(e -> mainUI.showPage("home"));
+        loginButton.addActionListener(e -> {
+            String uname = usernameEmailField.getText().trim();
+            String email = usernameEmailField.getText().trim(); // Email field is not separate in UI, so reuse
+            String pwd = new String(passField.getPassword()).trim();
+
+
+
+            DBConnection db = new DBConnection();
+            LoginUser log = new LoginUser(db, uname, pwd);
+
+            BackendError resp = log.login();
+            if (resp != null) {
+                JOptionPane.showMessageDialog(
+                        LoginPanel.this,
+                        "Failed to login: " + resp.getErrorType(),
+                        "Login Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            String dbPath;
+            resp = log.verifyDbFilePath();
+
+            if (resp != null && resp.getErrorType() == BackendError.ErrorTypes.DbFileDoesNotExist) {
+                BackendError newDbCreationResponse = log.getNewDbFilePath();
+                if (newDbCreationResponse != null) {
+                    JOptionPane.showMessageDialog(
+                            LoginPanel.this,
+                            "Failed to create vault file: " + newDbCreationResponse.getErrorType(),
+                            "Vault Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+            } else if (resp != null) {
+                JOptionPane.showMessageDialog(
+                        LoginPanel.this,
+                        "Failed to verify db file path: " + resp.getErrorType(),
+                        "Vault Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            dbPath = log.getDbFilePath();
+
+            mainUI.setVaultCredentials(dbPath, pwd);
+            mainUI.showPage("home");
+
+        });
+
         formPanel.add(loginButton);
 
         formPanel.add(Box.createVerticalStrut(15));

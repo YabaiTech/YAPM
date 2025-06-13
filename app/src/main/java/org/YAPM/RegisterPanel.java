@@ -1,5 +1,5 @@
 package org.YAPM;
-
+import org.backend.*;
 import com.formdev.flatlaf.FlatClientProperties;
 
 import javax.swing.*;
@@ -98,61 +98,72 @@ public class RegisterPanel extends JPanel {
         formPanel.add(passField);
         formPanel.add(Box.createVerticalStrut(20));
 
-        // Place this code after the password field and before the register button
-        JLabel rulesLabel = new JLabel("View username and password rules");
-        rulesLabel.setForeground(accentColor);
-        rulesLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        rulesLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        rulesLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        rulesLabel.addMouseListener(new MouseAdapter() {
-            Font originalFont = rulesLabel.getFont();
-
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                JOptionPane.showMessageDialog(
-                        RegisterPanel.this,
-                        """
-                        Username Rules:
-                        - Must be 4–20 characters long
-                        - Only letters, digits, underscores allowed
-                        
-                        Password Rules:
-                        - Minimum 8 characters
-                        - Must include at least one uppercase letter
-                        - Must include one lowercase letter
-                        - Must include one digit
-                        - Must include one special character
-                        """,
-                        "Registration Rules",
-                        JOptionPane.INFORMATION_MESSAGE
-                );
-            }
-
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                @SuppressWarnings("unchecked")
-                Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) originalFont.getAttributes();
-                attributes.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON);
-                rulesLabel.setFont(originalFont.deriveFont(attributes));
-            }
-
-            @Override
-            public void mouseExited(MouseEvent e) {
-                rulesLabel.setFont(originalFont);
-            }
-        });
-        formPanel.add(rulesLabel);
-        formPanel.add(Box.createVerticalStrut(10));
-
         JButton registerButton = new JButton("Register");
         registerButton.setAlignmentX(LEFT_ALIGNMENT);
         registerButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
         registerButton.setPreferredSize(new Dimension(450, 35));
-        registerButton.addActionListener(e -> mainUI.showPage("login"));
+
+        registerButton.addActionListener(e -> {
+            String uname = usernameField.getText().trim();
+            String email = emailField.getText().trim();
+            String pwd = new String(passField.getPassword()).trim();
+
+            DBConnection db = new DBConnection();
+            RegisterUser reg = new RegisterUser(db);
+
+            BackendError response = reg.setUsername(uname);
+            if (response != null) {
+                JOptionPane.showMessageDialog(
+                        RegisterPanel.this,
+                        "Error setting username: " + response.getErrorType(),
+                        "Registration Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            response = reg.setEmail(email);
+            if (response != null) {
+                JOptionPane.showMessageDialog(
+                        RegisterPanel.this,
+                        "Error setting email: " + response.getErrorType(),
+                        "Registration Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            response = reg.setPassword(pwd);
+            if (response != null) {
+                JOptionPane.showMessageDialog(
+                        RegisterPanel.this,
+                        "Error setting password: " + response.getErrorType(),
+                        "Registration Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            response = reg.register();
+            if (response == null) {
+                JOptionPane.showMessageDialog(
+                        RegisterPanel.this,
+                        "Successfully registered!",
+                        "Registration Successful",
+                        JOptionPane.INFORMATION_MESSAGE
+                );
+                mainUI.showPage("login");
+            } else {
+                JOptionPane.showMessageDialog(
+                        RegisterPanel.this,
+                        "Failed to register: " + response.getErrorType(),
+                        "Registration Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+            }
+        });
+
         formPanel.add(registerButton);
-
-
 
         formPanel.add(Box.createVerticalStrut(15));
 
