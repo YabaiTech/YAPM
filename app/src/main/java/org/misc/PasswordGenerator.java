@@ -38,26 +38,6 @@ public class PasswordGenerator {
     this.useSpecial = useSpecial;
   }
 
-  public boolean usingUpper() {
-    return this.useUpper;
-  }
-
-  public boolean usingLower() {
-    return this.useLower;
-  }
-
-  public boolean usingDigits() {
-    return this.useDigits;
-  }
-
-  public boolean usingSpecial() {
-    return this.useSpecial;
-  }
-
-  public static String getSpecialChars() {
-    return SPECIAL;
-  }
-
   public String generate(int length) {
     ArrayList<Character> passwdChars = new ArrayList<Character>(length);
     StringBuilder pool = new StringBuilder();
@@ -75,8 +55,8 @@ public class PasswordGenerator {
       pool.append(this.DIGITS);
     }
     if (this.useSpecial) {
-      passwdChars.add(randomCharFrom(this.SPECIAL));
-      pool.append(this.SPECIAL);
+      passwdChars.add(randomCharFrom(SPECIAL));
+      pool.append(SPECIAL);
     }
 
     if (length < passwdChars.size()) {
