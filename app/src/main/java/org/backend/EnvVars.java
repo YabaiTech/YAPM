@@ -9,7 +9,7 @@ class EnvVars {
 
   public static String MASTER_USER_TABLE = "master_users";
 
-  public static String TABLE_CREATION_SQL = """
+  public static final String TABLE_CREATION_SQL = """
       CREATE TABLE IF NOT EXISTS `YAPM`.`master_users` (`id` INT NOT NULL AUTO_INCREMENT, `username` VARCHAR(512) NOT NULL,
       `email` VARCHAR(1024) NOT NULL, `hashed_password` VARCHAR(2048) NOT NULL,
       `salt` VARCHAR(1024) NOT NULL, `pwd_db_path` VARCHAR(2048) NOT NULL,

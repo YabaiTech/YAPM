@@ -20,8 +20,7 @@ public class SetupDB implements AutoCloseable {
   }
 
   private static void createDatabaseIfNotExisting() {
-    try {
-      Statement stmt = con.createStatement();
+    try (Statement stmt = con.createStatement()) {
       String dbCreationSQL = "CREATE DATABASE IF NOT EXISTS " + EnvVars.DATABASE_NAME;
       stmt.execute(dbCreationSQL);
     } catch (Exception e) {
@@ -33,11 +32,12 @@ public class SetupDB implements AutoCloseable {
   }
 
   private static void createTableIfNotExisting() {
-    try {
-      Statement stmnt = con.createStatement();
+    try (Statement stmnt = con.createStatement()) {
       stmnt.execute(EnvVars.TABLE_CREATION_SQL);
     } catch (Exception e) {
       System.err.println("[SetupDB.createMasterUserTable] Failed to create master user table: " + e);
+
+      System.exit(1);
     }
   }
 
