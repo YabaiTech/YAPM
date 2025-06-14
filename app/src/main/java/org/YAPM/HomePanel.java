@@ -19,11 +19,13 @@ public class HomePanel extends JPanel {
         this.mainUI = mainUI;
         setLayout(new BorderLayout());
 
+        // Initialize VaultManager with current login user's DB path and password
         LoginUser loginUser = App.currentLoginUser;
         String dbPath = loginUser.getDbFilePath();
         String pwd = loginUser.getPlaintextPassword();
         this.vm = new VaultManager(dbPath, pwd);
 
+        // Connect and open vault
         VaultStatus resp = vm.connectToDB();
         if (resp != VaultStatus.DBConnectionSuccess) {
             System.out.println("Failed to connect to local DB: " + resp);
@@ -34,9 +36,11 @@ public class HomePanel extends JPanel {
             System.out.println("Failed to open local DB: " + resp);
         }
 
+        // UI Colors
         Color darkBg = UIManager.getColor("Panel.background");
         Color textColor = UIManager.getColor("Label.foreground");
 
+        // Header label
         JLabel header = new JLabel("YAPM", SwingConstants.CENTER);
         header.setFont(new Font("Segoe UI", Font.BOLD, 24));
         header.setOpaque(true);
@@ -45,9 +49,11 @@ public class HomePanel extends JPanel {
         header.setBorder(new EmptyBorder(20, 0, 20, 0));
         add(header, BorderLayout.NORTH);
 
+        // Center panel wrapper
         JPanel centerWrapper = new JPanel(new BorderLayout());
         centerWrapper.setBackground(darkBg);
 
+        // Prepare table data
         String[] columnNames = {"Username", "URL", "Password"};
         String[][] rowData = new String[credentials.size()][3];
         for (int i = 0; i < credentials.size(); i++) {
@@ -57,8 +63,10 @@ public class HomePanel extends JPanel {
             rowData[i][2] = e.getPasswd();
         }
 
+        // Create table with model
         table = new JTable(new DefaultTableModel(rowData, columnNames));
 
+        // Password cell click copies password to clipboard
         table.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseClicked(java.awt.event.MouseEvent e) {
@@ -81,6 +89,7 @@ public class HomePanel extends JPanel {
             }
         });
 
+        // Table appearance settings
         table.setFillsViewportHeight(true);
         table.setRowHeight(30);
         table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -91,6 +100,7 @@ public class HomePanel extends JPanel {
         table.getTableHeader().setBackground(darkBg.darker());
         table.getTableHeader().setForeground(textColor);
 
+        // Add table to scroll pane
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         scrollPane.getViewport().setBackground(darkBg);
@@ -98,6 +108,7 @@ public class HomePanel extends JPanel {
         centerWrapper.add(scrollPane, BorderLayout.CENTER);
         add(centerWrapper, BorderLayout.CENTER);
 
+        // Button panel with Add, Refresh, Edit, Delete, Logout buttons
         JPanel buttonPanel = new JPanel(new GridLayout(1, 5, 10, 0));
         buttonPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         buttonPanel.setBackground(darkBg);
@@ -118,6 +129,7 @@ public class HomePanel extends JPanel {
             buttonPanel.add(btn);
         }
 
+        // Add button action: show dialog to add new entry
         addButton.addActionListener(e -> {
             JTextField urlField = new JTextField();
             JTextField usernameField = new JTextField();
@@ -149,10 +161,13 @@ public class HomePanel extends JPanel {
             }
         });
 
+        // Refresh button reloads table data
         refreshButton.addActionListener(e -> refreshEntryTable());
 
+        // Logout button returns to login page
         logoutButton.addActionListener(e -> mainUI.showPage("login"));
 
+        // Edit button: edit selected entry with dialog
         editButton.addActionListener(e -> {
             int row = table.getSelectedRow();
             if (row < 0 || row >= credentials.size()) {
@@ -192,6 +207,7 @@ public class HomePanel extends JPanel {
             }
         });
 
+        // Delete button: confirm and delete selected entry
         deleteButton.addActionListener(e -> {
             int row = table.getSelectedRow();
             if (row < 0 || row >= credentials.size()) {
@@ -215,6 +231,7 @@ public class HomePanel extends JPanel {
             }
         });
 
+        // Footer label
         JLabel footer = new JLabel("\u00A9 2025 All rights reserved.", SwingConstants.CENTER);
         footer.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         footer.setOpaque(true);
@@ -222,6 +239,7 @@ public class HomePanel extends JPanel {
         footer.setForeground(textColor);
         footer.setBorder(new EmptyBorder(20, 0, 20, 0));
 
+        // Bottom panel with buttons and footer
         JPanel southPanel = new JPanel(new BorderLayout());
         southPanel.add(buttonPanel, BorderLayout.NORTH);
         southPanel.add(footer, BorderLayout.SOUTH);
@@ -229,8 +247,9 @@ public class HomePanel extends JPanel {
         add(southPanel, BorderLayout.SOUTH);
     }
 
+    // Reload the entries from vault and update the table model
     private void refreshEntryTable() {
-        credentials.clear(); // Ensure list is fresh
+        credentials.clear(); // Clear old entries
         VaultStatus status = vm.openVault(credentials);
         if (status != VaultStatus.DBOpenVaultSuccess) {
             JOptionPane.showMessageDialog(this, "Failed to reload entries: " + status, "Error", JOptionPane.ERROR_MESSAGE);
