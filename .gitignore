@@ -1,4 +1,4 @@
-# Ignore the any .env file except sample.env
+# Ignore all .env file except sample.env
 *.env
 !sample.env
 
