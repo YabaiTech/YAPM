@@ -138,6 +138,14 @@ public class HomePanel extends JPanel {
         editButton.setForeground(textColor);
         editButton.setFocusPainted(false);
 
+        //delete button
+        JButton deleteButton = new JButton("Delete");
+        deleteButton.setFont(btnFont);
+        deleteButton.setBackground(darkBg.darker());
+        deleteButton.setForeground(textColor);
+        deleteButton.setFocusPainted(false);
+        buttonPanel.setLayout(new GridLayout(1, 5, 10, 0));
+
         // Add button action: opens a modal to add a new entry
         addButton.addActionListener(e -> {
             JTextField urlField = new JTextField();
@@ -227,11 +235,41 @@ public class HomePanel extends JPanel {
             }
         });
 
+        //ActionListener for Deleting
+        deleteButton.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(this, "Select an entry to delete.", "No Selection", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Entry ent = credentials.get(row);
+            int id = ent.getID();
+
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    String.format("Are you sure you want to delete '%s'?", ent.getUsername()),
+                    "Confirm Delete",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+            if (confirm != JOptionPane.YES_OPTION) return;
+
+            VaultStatus st = vm.deleteEntry(id);
+            if (st == VaultStatus.DBDeleteEntrySuccess) {
+                JOptionPane.showMessageDialog(this, "Entry deleted.", "Deleted", JOptionPane.INFORMATION_MESSAGE);
+                refreshEntryTable();
+            } else {
+                JOptionPane.showMessageDialog(this, "Delete failed: " + st, "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
 
         buttonPanel.add(addButton);
         buttonPanel.add(refreshButton);
         buttonPanel.add(logoutButton);
         buttonPanel.add(editButton);
+        buttonPanel.add(deleteButton);
 
         // Footer
         JLabel footer = new JLabel("\u00A9 2025 All rights reserved.", SwingConstants.CENTER);
