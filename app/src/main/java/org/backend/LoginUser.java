@@ -17,7 +17,7 @@ public class LoginUser {
   private final DBOperations dbOps;
   private String username;
   private String email;
-  private String plaintextPassword;
+  private final String plaintextPassword;
   private String hashedPassword;
   private String dbPath;
   private UserInfo fetchedUser;
@@ -104,7 +104,7 @@ public class LoginUser {
     } catch (Exception e) {
       System.err.println(
           "[RegisterUser] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
-              + e.toString());
+              + e);
       System.exit(1);
     }
   }
@@ -126,9 +126,7 @@ public class LoginUser {
   }
 
   private String getRandomUUID() {
-    String randUUID = UUID.randomUUID().toString();
-
-    return randUUID;
+    return UUID.randomUUID().toString();
   }
 
   private BackendError createLocalDb(String dbPath) {
