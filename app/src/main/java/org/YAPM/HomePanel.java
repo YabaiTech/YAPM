@@ -10,7 +10,10 @@ import org.backend.*;
 
 public class HomePanel extends JPanel {
 
-    public HomePanel() {
+    private final MainUI mainUI;
+
+    public HomePanel(MainUI mainUI) {
+        this.mainUI = mainUI;
         setLayout(new BorderLayout());
 
         LoginUser loginUser = App.currentLoginUser;
@@ -78,13 +81,55 @@ public class HomePanel extends JPanel {
 
         add(centerWrapper, BorderLayout.CENTER);
 
-        // Footer
+        // Buttons panel above footer
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 10, 0)); // 10 px gap between buttons
+        buttonPanel.setBorder(new EmptyBorder(10, 10, 10, 10)); // padding around buttons
+        buttonPanel.setBackground(darkBg);
+
+        JButton addButton = new JButton("Add");
+        JButton logoutButton = new JButton("Log Out");
+
+// Set fonts/colors to match theme
+        Font btnFont = new Font("Segoe UI", Font.PLAIN, 14);
+        addButton.setFont(btnFont);
+        logoutButton.setFont(btnFont);
+
+        addButton.setBackground(darkBg.darker());
+        addButton.setForeground(textColor);
+        logoutButton.setBackground(darkBg.darker());
+        logoutButton.setForeground(textColor);
+
+// Remove button focus painting for cleaner look (optional)
+        addButton.setFocusPainted(false);
+        logoutButton.setFocusPainted(false);
+
+// Dummy action listeners
+        addButton.addActionListener(e -> {
+            // TODO: Implement Add button action
+        });
+
+        logoutButton.addActionListener(e -> {
+            mainUI.showPage("login");
+        });
+
+        buttonPanel.add(addButton);
+        buttonPanel.add(logoutButton);
+
+// Footer label
         JLabel footer = new JLabel("\u00A9 2025 All rights reserved.", SwingConstants.CENTER);
         footer.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         footer.setOpaque(true);
         footer.setBackground(darkBg.darker());
         footer.setForeground(textColor);
         footer.setBorder(new EmptyBorder(20, 0, 20, 0));
-        add(footer, BorderLayout.SOUTH);
+
+// Add buttons panel first, then footer to SOUTH with a wrapper panel
+        JPanel southPanel = new JPanel(new BorderLayout());
+        southPanel.add(buttonPanel, BorderLayout.NORTH);
+        southPanel.add(footer, BorderLayout.SOUTH);
+        southPanel.setBackground(darkBg.darker());
+
+        add(southPanel, BorderLayout.SOUTH);
+
     }
 }

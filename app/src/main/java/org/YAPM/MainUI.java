@@ -29,7 +29,7 @@ public class MainUI extends JFrame {
 
     public void showPage(String name) {
         if (name.equals("home")) {
-            HomePanel homePanel = new HomePanel(); // safe now, user is logged in
+            HomePanel homePanel = new HomePanel(this); // safe now, user is logged in
             cardPanel.add(homePanel, "home");
         }
         cardLayout.show(cardPanel, name);

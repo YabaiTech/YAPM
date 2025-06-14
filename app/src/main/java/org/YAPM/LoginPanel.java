@@ -59,7 +59,7 @@ public class LoginPanel extends JPanel {
         emailLabel.setBorder(new EmptyBorder(0, 0, 5, 0));
 
         // Username/Email field
-        JTextField usernameEmailField = new JTextField();
+        final JTextField usernameEmailField = new JTextField();
         usernameEmailField.putClientProperty(FlatClientProperties.STYLE, "font: 18");
         usernameEmailField.setFont(usernameEmailField.getFont().deriveFont(18f));
         usernameEmailField.setPreferredSize(new Dimension(450, 40));
@@ -80,7 +80,7 @@ public class LoginPanel extends JPanel {
         passLabel.setBorder(new EmptyBorder(0, 0, 5, 0));
 
         // Password field
-        JPasswordField passField = new JPasswordField();
+        final JPasswordField passField = new JPasswordField();
         passField.putClientProperty(FlatClientProperties.STYLE, "font: 18");
         passField.setFont(passField.getFont().deriveFont(18f));
         passField.setPreferredSize(new Dimension(450, 40));
@@ -253,6 +253,8 @@ public class LoginPanel extends JPanel {
                     JOptionPane.INFORMATION_MESSAGE
             );
             App.currentLoginUser = loginUser;
+            usernameEmailField.setText("");
+            passField.setText("");
             mainUI.showPage("home");
         });
 
