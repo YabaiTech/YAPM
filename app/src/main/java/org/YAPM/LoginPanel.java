@@ -9,10 +9,15 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.font.TextAttribute;
 import java.util.Map;
+import org.backend.*;
 
 public class LoginPanel extends JPanel {
 
+    private final MainUI mainUI;
+
     public LoginPanel(MainUI mainUI) {
+        this.mainUI = mainUI;  // assign instance to field
+
         setLayout(new BorderLayout());
 
         // Use FlatLaf Nord colors from UIManager
@@ -88,8 +93,7 @@ public class LoginPanel extends JPanel {
         formPanel.add(passField);
         formPanel.add(Box.createVerticalStrut(20));
 
-        // Add this after passField and the vertical strut, before loginButton in formPanel
-
+        // Rules label
         JLabel rulesLabel = new JLabel("View username and password rules");
         rulesLabel.setForeground(accentColor);
         rulesLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -134,13 +138,125 @@ public class LoginPanel extends JPanel {
         formPanel.add(rulesLabel);
         formPanel.add(Box.createVerticalStrut(10));
 
-
         // Login Button
         JButton loginButton = new JButton("Login");
         loginButton.setAlignmentX(LEFT_ALIGNMENT);
         loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
         loginButton.setPreferredSize(new Dimension(450, 35));
-        loginButton.addActionListener(e -> mainUI.showPage("home"));
+
+        loginButton.addActionListener(e -> {
+            String accountIdentifier = usernameEmailField.getText().trim();
+            String password = new String(passField.getPassword());
+
+            if (accountIdentifier.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        LoginPanel.this,
+                        "Username/Email cannot be empty.",
+                        "Input Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            // New alphanumeric username check (if no @ symbol)
+            if (!accountIdentifier.contains("@")) {
+                // Check if username is alphanumeric only
+                if (!accountIdentifier.matches("^[a-zA-Z0-9]+$")) {
+                    JOptionPane.showMessageDialog(
+                            LoginPanel.this,
+                            "Username must be alphanumeric (letters and digits only).",
+                            "Input Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+            }
+
+            if (password.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        LoginPanel.this,
+                        "Password cannot be empty.",
+                        "Input Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            if (password.length() < 8) {
+                JOptionPane.showMessageDialog(
+                        LoginPanel.this,
+                        "Password must be at least 8 characters long.",
+                        "Input Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            // Optional: Validate email format if input looks like email
+            if (accountIdentifier.contains("@") && !accountIdentifier.matches("^[\\w.%+-]+@[\\w.-]+\\.[A-Za-z]{2,6}$")) {
+                JOptionPane.showMessageDialog(
+                        LoginPanel.this,
+                        "Invalid email format.",
+                        "Input Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            // Proceed with backend login...
+            DBConnection dbConnection = new DBConnection();
+            LoginUser loginUser = new LoginUser(dbConnection, accountIdentifier, password);
+
+            BackendError loginErr = loginUser.login();
+            if (loginErr != null) {
+                JOptionPane.showMessageDialog(
+                        LoginPanel.this,
+                        "Login failed: " + loginErr.getErrorType(),
+                        "Login Error",
+                        JOptionPane.ERROR_MESSAGE
+                );
+                return;
+            }
+
+            BackendError verifyErr = loginUser.verifyDbFilePath();
+
+            if (verifyErr != null) {
+                if (verifyErr.getErrorType() == BackendError.ErrorTypes.DbFileDoesNotExist) {
+                    BackendError newDbCreationResponse = loginUser.getNewDbFilePath();
+                    if (newDbCreationResponse != null) {
+                        JOptionPane.showMessageDialog(
+                                LoginPanel.this,
+                                "Failed to create new vault database file: " + newDbCreationResponse.getErrorType(),
+                                "Vault Error",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                        return;
+                    }
+                    // else continue
+                } else {
+                    JOptionPane.showMessageDialog(
+                            LoginPanel.this,
+                            "Failed to verify vault database file: " + verifyErr.getErrorType(),
+                            "Vault Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+            }
+
+            String vaultDbPath = loginUser.getDbFilePath();
+
+            JOptionPane.showMessageDialog(
+                    LoginPanel.this,
+                    "Login successful!",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE
+            );
+            App.currentLoginUser = loginUser;
+            mainUI.showPage("home");
+        });
+
+
         formPanel.add(loginButton);
 
         formPanel.add(Box.createVerticalStrut(15));
@@ -159,13 +275,12 @@ public class LoginPanel extends JPanel {
         registerNowLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         registerNowLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // Manual underline toggle with TextAttribute
         registerNowLabel.addMouseListener(new MouseAdapter() {
             Font originalFont = registerNowLabel.getFont();
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                mainUI.showPage("register");
+                mainUI.showPage("register");  // corrected here too
             }
 
             @Override

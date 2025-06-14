@@ -12,27 +12,26 @@ public class MainUI extends JFrame {
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(600, 700);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
-//        setUndecorated(true);
-
         setLocationRelativeTo(null);
-
 
         cardLayout = new CardLayout();
         cardPanel = new JPanel(cardLayout);
 
         LoginPanel loginPanel = new LoginPanel(this);
         RegisterPanel registerPanel = new RegisterPanel(this);
-        HomePanel homePanel = new HomePanel();
 
         cardPanel.add(loginPanel, "login");
         cardPanel.add(registerPanel, "register");
-        cardPanel.add(homePanel, "home");
 
         add(cardPanel);
         cardLayout.show(cardPanel, "login"); // show login by default
     }
 
     public void showPage(String name) {
+        if (name.equals("home")) {
+            HomePanel homePanel = new HomePanel(); // safe now, user is logged in
+            cardPanel.add(homePanel, "home");
+        }
         cardLayout.show(cardPanel, name);
     }
 }

@@ -204,4 +204,9 @@ public class LoginUser {
 
     return this.dbPath;
   }
+
+  public String getPlaintextPassword() {
+    return this.plaintextPassword;
+  }
+
 }
