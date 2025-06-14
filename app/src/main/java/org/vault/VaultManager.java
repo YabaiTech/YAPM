@@ -70,7 +70,7 @@ public class VaultManager implements AutoCloseable {
   public VaultStatus openVault(ArrayList<Entry> entries) {
     byte[] salt;
     try {
-      salt = verifyMasterPasswd(masterPasswd);
+      salt = verifyMasterPasswd(this.masterPasswd);
       if (salt == null) {
         return VaultStatus.DBOpenVaultFailure;
       }
@@ -129,7 +129,7 @@ public class VaultManager implements AutoCloseable {
 
     byte[] salt;
     try {
-      salt = verifyMasterPasswd(masterPasswd);
+      salt = verifyMasterPasswd(this.masterPasswd);
       if (salt == null) {
         return VaultStatus.DBAddEntryFailureException;
       }
@@ -149,7 +149,7 @@ public class VaultManager implements AutoCloseable {
 
     EncryptedData encrypted;
     try {
-      encrypted = CryptoUtils.encrypt(plainPasswdField, masterPasswd, salt);
+      encrypted = CryptoUtils.encrypt(plainPasswdField, this.masterPasswd, salt);
     } catch (Exception e) {
       System.out.println("[VaultManager.addEntry] ERROR: ");
       e.printStackTrace();
@@ -178,7 +178,7 @@ public class VaultManager implements AutoCloseable {
 
   public VaultStatus deleteEntry(int entryID) {
     try {
-      byte[] salt = verifyMasterPasswd(masterPasswd);
+      byte[] salt = verifyMasterPasswd(this.masterPasswd);
       if (salt == null) {
         return VaultStatus.DBDeleteEntryFailureException;
       }
@@ -209,6 +209,67 @@ public class VaultManager implements AutoCloseable {
       System.out.println("[VaultManager.deleteEntry] ERROR: ");
       e.printStackTrace();
       return VaultStatus.DBDeleteEntryFailureException;
+    }
+  }
+
+  public VaultStatus editEntry(int entryID, String newUrl, String newUsername, String newPlainPasswd) {
+    if (newUrl.isEmpty() || newUsername.isEmpty() || newPlainPasswd.isEmpty()) {
+      return VaultStatus.DBEditEntryFailureEmptyParameter;
+    }
+
+    byte[] salt;
+    try {
+      salt = verifyMasterPasswd(this.masterPasswd);
+      if (salt == null) {
+        return VaultStatus.DBEditEntryFailureException;
+      }
+    } catch (IllegalStateException e) {
+      System.out.println("[VaultManager.editEntry] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBBadVerificationFormat;
+    } catch (SecurityException e) {
+      System.out.println("[VaultManager.editEntry] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBWrongMasterPasswd;
+    } catch (Exception e) {
+      System.out.println("[VaultManager.editEnty] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBEditEntryFailureException;
+    }
+
+    EncryptedData encrypted;
+    try {
+      encrypted = CryptoUtils.encrypt(newPlainPasswd, this.masterPasswd, salt);
+    } catch (Exception e) {
+      System.out.println("[VaultManager.editEntry] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBEditEntryFailureException;
+    }
+    String cipherB64 = encrypted.getCipherText();
+    String ivB64 = encrypted.getIV();
+
+    try (PreparedStatement ps = connection.prepareStatement(
+        "UPDATE entries " +
+            "SET url = ?, username = ?, password = ?, iv = ? " +
+            "WHERE id = ?")) {
+
+      ps.setString(1, newUrl);
+      ps.setString(2, newUsername);
+      ps.setString(3, cipherB64);
+      ps.setString(4, ivB64);
+      ps.setInt(5, entryID);
+
+      int affected = ps.executeUpdate();
+      if (affected == 0) {
+        return VaultStatus.DBEditEntryFailureInvalidID;
+      }
+
+      this.connection.commit();
+      return VaultStatus.DBEditEntrySuccess;
+    } catch (SQLException e) {
+      System.out.println("[VaultManager.editEntry] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBEditEntryFailureException;
     }
   }
 
