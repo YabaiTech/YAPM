@@ -131,6 +131,20 @@ public class HomePanel extends JPanel {
 
         addButton.setFocusPainted(false);
         logoutButton.setFocusPainted(false);
+        //Edit Button
+        JButton editButton = new JButton("Edit");
+        editButton.setFont(btnFont);
+        editButton.setBackground(darkBg.darker());
+        editButton.setForeground(textColor);
+        editButton.setFocusPainted(false);
+
+        //delete button
+        JButton deleteButton = new JButton("Delete");
+        deleteButton.setFont(btnFont);
+        deleteButton.setBackground(darkBg.darker());
+        deleteButton.setForeground(textColor);
+        deleteButton.setFocusPainted(false);
+        buttonPanel.setLayout(new GridLayout(1, 5, 10, 0));
 
         // Add button action: opens a modal to add a new entry
         addButton.addActionListener(e -> {
@@ -170,10 +184,92 @@ public class HomePanel extends JPanel {
         });
 
         refreshButton.addActionListener(e -> refreshEntryTable());
+        // Add edit button action listener
+        editButton.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(this, "Select an entry to edit.", "No Selection", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Entry ent = credentials.get(row);
+            int id = ent.getID();
+            String url = ent.getURL();
+            String username = ent.getUsername();
+            String password = ent.getPasswd();
+
+            JTextField urlField = new JTextField(url);
+            JTextField usernameField = new JTextField(username);
+            JTextField passwordField = new JTextField(password);
+
+            JPanel panel = new JPanel(new GridLayout(0, 1));
+            panel.add(new JLabel("URL:"));
+            panel.add(urlField);
+            panel.add(new JLabel("Username:"));
+            panel.add(usernameField);
+            panel.add(new JLabel("Password:"));
+            panel.add(passwordField);
+
+            int result = JOptionPane.showConfirmDialog(
+                    this,
+                    panel,
+                    "Edit Entry",
+                    JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.PLAIN_MESSAGE
+            );
+
+            if (result != JOptionPane.OK_OPTION) return;
+
+            VaultStatus st = vm.editEntry(
+                    id,
+                    urlField.getText().trim(),
+                    usernameField.getText().trim(),
+                    passwordField.getText().trim()
+            );
+
+            if (st == VaultStatus.DBEditEntrySuccess) {
+                JOptionPane.showMessageDialog(this, "Entry updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                refreshEntryTable();
+            } else {
+                JOptionPane.showMessageDialog(this, "Failed to update entry: " + st, "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
+        //ActionListener for Deleting
+        deleteButton.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(this, "Select an entry to delete.", "No Selection", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+
+            Entry ent = credentials.get(row);
+            int id = ent.getID();
+
+            int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    String.format("Are you sure you want to delete '%s'?", ent.getUsername()),
+                    "Confirm Delete",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+            );
+            if (confirm != JOptionPane.YES_OPTION) return;
+
+            VaultStatus st = vm.deleteEntry(id);
+            if (st == VaultStatus.DBDeleteEntrySuccess) {
+                JOptionPane.showMessageDialog(this, "Entry deleted.", "Deleted", JOptionPane.INFORMATION_MESSAGE);
+                refreshEntryTable();
+            } else {
+                JOptionPane.showMessageDialog(this, "Delete failed: " + st, "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+
 
         buttonPanel.add(addButton);
         buttonPanel.add(refreshButton);
         buttonPanel.add(logoutButton);
+        buttonPanel.add(editButton);
+        buttonPanel.add(deleteButton);
 
         // Footer
         JLabel footer = new JLabel("\u00A9 2025 All rights reserved.", SwingConstants.CENTER);
