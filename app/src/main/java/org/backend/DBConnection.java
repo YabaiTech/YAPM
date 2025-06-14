@@ -2,7 +2,7 @@ package org.backend;
 
 import java.sql.*;
 
-public class DBConnection implements AutoCloseable {
+public class DBConnection implements AutoCloseable, DatabaseConnection {
   public Connection con;
 
   public DBConnection() {
@@ -14,6 +14,10 @@ public class DBConnection implements AutoCloseable {
 
       System.exit(1);
     }
+  }
+
+  public Connection getConnection() {
+    return this.con;
   }
 
   @Override

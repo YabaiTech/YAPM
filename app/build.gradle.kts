@@ -24,6 +24,7 @@ dependencies {
     // This dependency is used by the application.
     implementation(libs.guava)
 
+    implementation("io.github.cdimascio:dotenv-java:3.2.0")
     implementation("com.mysql:mysql-connector-j:8.0.33")
     implementation("org.xerial:sqlite-jdbc:3.50.1.0");
 
