@@ -1,6 +1,3 @@
-# Ignore Intellij Idea specific files
-.idea
-
 # Ignore Echlipse LSP (JDTLS) specific files
 .settings
 .project

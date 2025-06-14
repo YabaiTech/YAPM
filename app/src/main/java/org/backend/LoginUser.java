@@ -122,6 +122,7 @@ public class LoginUser {
           "[LoginUser.verifyDbFilePath] The database file does not exist in the saved directory");
     }
 
+    this.dbPath = dirPath.toString();
     return null;
   }
 
@@ -201,4 +202,9 @@ public class LoginUser {
 
     return this.dbPath;
   }
+
+  public String getPlaintextPassword() {
+    return this.plaintextPassword;
+  }
+
 }
