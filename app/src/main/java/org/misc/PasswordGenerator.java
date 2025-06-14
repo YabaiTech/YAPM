@@ -8,7 +8,7 @@ public class PasswordGenerator {
   private final String UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   private final String LOWER = "abcdefghijklmnopqrstuvwxyz";
   private final String DIGITS = "0123456789";
-  private final static String SPECIAL = "#$%&^`~.,:;\"'\\|/_-<>*+!?[{}()]=@";
+  private final String SPECIAL = "#$%&^`~.,:;\"'\\|/_-<>*+!?[{}()]=@";
 
   private final SecureRandom random = new SecureRandom();
 
@@ -55,8 +55,8 @@ public class PasswordGenerator {
       pool.append(this.DIGITS);
     }
     if (this.useSpecial) {
-      passwdChars.add(randomCharFrom(SPECIAL));
-      pool.append(SPECIAL);
+      passwdChars.add(randomCharFrom(this.SPECIAL));
+      pool.append(this.SPECIAL);
     }
 
     if (length < passwdChars.size()) {
