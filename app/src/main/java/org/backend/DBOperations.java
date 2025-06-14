@@ -5,8 +5,8 @@ import java.sql.*;
 public class DBOperations {
   private final Connection con;
 
-  public DBOperations(DBConnection db) {
-    this.con = db.con;
+  public DBOperations(DatabaseConnection db) {
+    this.con = db.getConnection();
   }
 
   public BackendError addUser(String username, String email, String hashedPassword, String saltB64, String dbFilePath,

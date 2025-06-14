@@ -25,7 +25,7 @@ class CloudDbConnectionTest {
 
   @Test
   void addUserToDb() {
-    DBConnection db = new DBConnection();
+    CloudDbConnection db = new CloudDbConnection();
     DBOperations ops = new DBOperations(db);
 
     // generate a random number from 1 to 90,000
