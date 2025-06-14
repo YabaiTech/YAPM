@@ -5,12 +5,15 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.ArrayList;
+
 import org.vault.*;
 import org.backend.*;
 
 public class HomePanel extends JPanel {
 
     private final MainUI mainUI;
+    private final VaultManager vm;
+    private final JTable table;
 
     public HomePanel(MainUI mainUI) {
         this.mainUI = mainUI;
@@ -20,19 +23,17 @@ public class HomePanel extends JPanel {
         String dbPath = loginUser.getDbFilePath();
         String pwd = loginUser.getPlaintextPassword();
 
-        VaultManager vm = new VaultManager(dbPath, pwd);
+        this.vm = new VaultManager(dbPath, pwd);
 
         VaultStatus resp = vm.connectToDB();
         if (resp != VaultStatus.DBConnectionSuccess) {
             System.out.println("Failed to connect to local DB: " + resp);
-            // You can handle this error more gracefully if needed
         }
 
         ArrayList<Entry> credentials = new ArrayList<>();
         resp = vm.openVault(credentials);
         if (resp == VaultStatus.DBOpenVaultFailure) {
             System.out.println("Failed to open local DB: " + resp);
-            // You can handle this error more gracefully if needed
         }
 
         Color darkBg = UIManager.getColor("Panel.background");
@@ -51,7 +52,7 @@ public class HomePanel extends JPanel {
         JPanel centerWrapper = new JPanel(new BorderLayout());
         centerWrapper.setBackground(darkBg);
 
-        // Prepare data for table
+        // Prepare table data
         String[] columnNames = {"Username", "URL", "Password"};
         String[][] rowData = new String[credentials.size()][3];
         for (int i = 0; i < credentials.size(); i++) {
@@ -61,8 +62,7 @@ public class HomePanel extends JPanel {
             rowData[i][2] = e.getPasswd();
         }
 
-        // Create table with data
-        JTable table = new JTable(new DefaultTableModel(rowData, columnNames));
+        table = new JTable(new DefaultTableModel(rowData, columnNames));
         table.setFillsViewportHeight(true);
         table.setRowHeight(30);
         table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -78,18 +78,17 @@ public class HomePanel extends JPanel {
         scrollPane.getViewport().setBackground(darkBg);
 
         centerWrapper.add(scrollPane, BorderLayout.CENTER);
-
         add(centerWrapper, BorderLayout.CENTER);
 
-        // Buttons panel above footer
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 10, 0)); // 10 px gap between buttons
-        buttonPanel.setBorder(new EmptyBorder(10, 10, 10, 10)); // padding around buttons
+        // Buttons panel
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 3, 10, 0)); // Change 2 → 3
+        buttonPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         buttonPanel.setBackground(darkBg);
 
         JButton addButton = new JButton("Add");
         JButton logoutButton = new JButton("Log Out");
+        JButton refreshButton = new JButton("Refresh");
 
-// Set fonts/colors to match theme
         Font btnFont = new Font("Segoe UI", Font.PLAIN, 14);
         addButton.setFont(btnFont);
         logoutButton.setFont(btnFont);
@@ -99,23 +98,58 @@ public class HomePanel extends JPanel {
         logoutButton.setBackground(darkBg.darker());
         logoutButton.setForeground(textColor);
 
-// Remove button focus painting for cleaner look (optional)
+        refreshButton.setFont(btnFont);
+        refreshButton.setBackground(darkBg.darker());
+        refreshButton.setForeground(textColor);
+        refreshButton.setFocusPainted(false);
+
         addButton.setFocusPainted(false);
         logoutButton.setFocusPainted(false);
 
-// Dummy action listeners
+        // Add button action: opens a modal to add a new entry
         addButton.addActionListener(e -> {
-            // TODO: Implement Add button action
+            JTextField urlField = new JTextField();
+            JTextField usernameField = new JTextField();
+            JTextField passwordField = new JTextField();
+
+            JPanel panel = new JPanel(new GridLayout(0, 1));
+            panel.add(new JLabel("URL:"));
+            panel.add(urlField);
+            panel.add(new JLabel("Username:"));
+            panel.add(usernameField);
+            panel.add(new JLabel("Password:"));
+            panel.add(passwordField);
+
+            int result = JOptionPane.showConfirmDialog(this, panel, "Add New Entry",
+                    JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+            if (result == JOptionPane.OK_OPTION) {
+                String url = urlField.getText().trim();
+                String username = usernameField.getText().trim();
+                String password = passwordField.getText().trim();
+
+                VaultStatus status = vm.addEntry(url, username, password);
+                if (status == VaultStatus.DBAddEntrySuccess) {
+                    JOptionPane.showMessageDialog(this, "Entry added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    refreshEntryTable();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Failed to add entry: " + status, "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
         });
 
+        // Logout button: goes back to login page
         logoutButton.addActionListener(e -> {
             mainUI.showPage("login");
         });
 
+        refreshButton.addActionListener(e -> refreshEntryTable());
+
         buttonPanel.add(addButton);
+        buttonPanel.add(refreshButton);
         buttonPanel.add(logoutButton);
 
-// Footer label
+        // Footer
         JLabel footer = new JLabel("\u00A9 2025 All rights reserved.", SwingConstants.CENTER);
         footer.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         footer.setOpaque(true);
@@ -123,13 +157,31 @@ public class HomePanel extends JPanel {
         footer.setForeground(textColor);
         footer.setBorder(new EmptyBorder(20, 0, 20, 0));
 
-// Add buttons panel first, then footer to SOUTH with a wrapper panel
         JPanel southPanel = new JPanel(new BorderLayout());
         southPanel.add(buttonPanel, BorderLayout.NORTH);
         southPanel.add(footer, BorderLayout.SOUTH);
         southPanel.setBackground(darkBg.darker());
 
         add(southPanel, BorderLayout.SOUTH);
+    }
 
+    private void refreshEntryTable() {
+        ArrayList<Entry> updatedEntries = new ArrayList<>();
+        VaultStatus status = vm.openVault(updatedEntries);
+        if (status != VaultStatus.DBOpenVaultSuccess) {
+            JOptionPane.showMessageDialog(this, "Failed to reload entries: " + status, "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String[][] rowData = new String[updatedEntries.size()][3];
+        for (int i = 0; i < updatedEntries.size(); i++) {
+            Entry e = updatedEntries.get(i);
+            rowData[i][0] = e.getUsername();
+            rowData[i][1] = e.getURL();
+            rowData[i][2] = e.getPasswd();
+        }
+
+        DefaultTableModel model = new DefaultTableModel(rowData, new String[]{"Username", "URL", "Password"});
+        table.setModel(model);
     }
 }
