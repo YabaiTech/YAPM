@@ -219,14 +219,29 @@ public class LoginPanel extends JPanel {
             }
 
             BackendError verifyErr = loginUser.verifyDbFilePath();
+
             if (verifyErr != null) {
-                JOptionPane.showMessageDialog(
-                        LoginPanel.this,
-                        "Vault file error: " + verifyErr.getErrorType(),
-                        "Login Error",
-                        JOptionPane.ERROR_MESSAGE
-                );
-                return;
+                if (verifyErr.getErrorType() == BackendError.ErrorTypes.DbFileDoesNotExist) {
+                    BackendError newDbCreationResponse = loginUser.getNewDbFilePath();
+                    if (newDbCreationResponse != null) {
+                        JOptionPane.showMessageDialog(
+                                LoginPanel.this,
+                                "Failed to create new vault database file: " + newDbCreationResponse.getErrorType(),
+                                "Vault Error",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                        return;
+                    }
+                    // else continue
+                } else {
+                    JOptionPane.showMessageDialog(
+                            LoginPanel.this,
+                            "Failed to verify vault database file: " + verifyErr.getErrorType(),
+                            "Vault Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
             }
 
             String vaultDbPath = loginUser.getDbFilePath();
@@ -237,7 +252,7 @@ public class LoginPanel extends JPanel {
                     "Success",
                     JOptionPane.INFORMATION_MESSAGE
             );
-
+            App.currentLoginUser = loginUser;
             mainUI.showPage("home");
         });
 
