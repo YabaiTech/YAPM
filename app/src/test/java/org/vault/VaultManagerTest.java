@@ -185,19 +185,26 @@ class VaultManagerTest {
     assertEquals(VaultStatus.DBCreateVaultSuccess, v2.createVault());
 
     assertEquals(VaultStatus.DBAddEntrySuccess, vm.addEntry("site", "alice", "oldPass"));
+    assertEquals(VaultStatus.DBAddEntrySuccess, vm.addEntry("site1", "alice1", "oldPass1"));
+    assertEquals(VaultStatus.DBAddEntrySuccess, vm.addEntry("site2", "alice2", "oldPass2"));
     Thread.sleep(10);
     assertEquals(VaultStatus.DBAddEntrySuccess, v2.addEntry("site-new", "alice-new", "newPass"));
+    assertEquals(VaultStatus.DBAddEntrySuccess, v2.addEntry("site1", "alice1", "changedPass1"));
 
     assertEquals(VaultStatus.DBMergeSuccess, vm.merge(v2));
 
     ArrayList<Entry> merged = new ArrayList<>();
     assertEquals(VaultStatus.DBOpenVaultSuccess, vm.openVault(merged));
-    assertEquals(1, merged.size());
+    assertEquals(3, merged.size());
 
     Entry e = merged.get(0);
+    Entry e1 = merged.get(1);
     assertEquals("site-new", e.getURL());
     assertEquals("alice-new", e.getUsername());
     assertEquals("newPass", e.getPasswd());
+    assertEquals("site1", e1.getURL());
+    assertEquals("alice1", e1.getUsername());
+    assertEquals("changedPass1", e1.getPasswd());
 
     assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
   }
