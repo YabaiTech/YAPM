@@ -16,7 +16,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class RegisterUser {
-  private DBOperations dbOps;
+  private final DBOperations dbOps;
   private String username;
   private String email;
   private String plaintextPassword;
@@ -45,9 +45,9 @@ public class RegisterUser {
     for (int i = 0; i < uname.length(); i++) {
       char c = uname.charAt(i);
 
-      boolean isLowercase = ((c >= 'a') && (c <= 'z')) ? true : false;
-      boolean isUppercase = ((c >= 'A') && (c <= 'Z')) ? true : false;
-      boolean isNumeric = ((c >= '0') && (c <= '9')) ? true : false;
+      boolean isLowercase = (c >= 'a') && (c <= 'z');
+      boolean isUppercase = (c >= 'A') && (c <= 'Z');
+      boolean isNumeric = (c >= '0') && (c <= '9');
 
       if (!isLowercase && !isUppercase && !isNumeric) {
         return false;
@@ -68,17 +68,13 @@ public class RegisterUser {
 
   private boolean isValidEmail(String email) {
     String[] emailsParts = email.split("@");
-    if (emailsParts.length != 2 || emailsParts[0].length() == 0 ||
-        emailsParts[1].length() == 0) {
+    if (emailsParts.length != 2 || emailsParts[0].isEmpty() ||
+        emailsParts[1].isEmpty()) {
       return false;
     }
 
     String[] urlParts = emailsParts[1].split("\\.");
-    if (urlParts.length < 2) {
-      return false;
-    }
-
-    return true;
+    return urlParts.length >= 2;
   }
 
   public BackendError setPassword(String pwd) {
@@ -119,12 +115,12 @@ public class RegisterUser {
     for (int i = 0; i < pwd.length(); i++) {
       char c = pwd.charAt(i);
 
-      boolean isLowercase = ((c >= 'a') && (c <= 'z')) ? true : false;
-      boolean isUppercase = ((c >= 'A') && (c <= 'Z')) ? true : false;
-      boolean isNumeric = ((c >= '0') && (c <= '9')) ? true : false;
+      boolean isLowercase = (c >= 'a') && (c <= 'z');
+      boolean isUppercase = (c >= 'A') && (c <= 'Z');
+      boolean isNumeric = (c >= '0') && (c <= '9');
       boolean specialCondition = ((c >= '!') && (c <= '/')) || ((c >= ':') && (c <= '@')) || ((c >= '[') && (c <= '`'))
           || ((c >= '{') && (c <= '~'));
-      boolean isSpecialChar = (specialCondition) ? true : false;
+      boolean isSpecialChar = specialCondition;
 
       if (isLowercase) {
         hasAtleast1Lowercase = true;
@@ -190,9 +186,7 @@ public class RegisterUser {
   }
 
   private String getRandomUUID() {
-    String randUUID = UUID.randomUUID().toString();
-
-    return randUUID;
+    return UUID.randomUUID().toString();
   }
 
   private String getDbFilePath() throws FileSystemException {
@@ -223,9 +217,8 @@ public class RegisterUser {
     // now the YAPM directory exists, just need to generate a suitable name for the
     // db file
     dbFileName = this.username + getRandomUUID() + ".db";
-    String dbPath = new File(dbStoreDirectory, dbFileName).toString();
 
-    return dbPath;
+    return new File(dbStoreDirectory, dbFileName).toString();
   }
 
   private BackendError createLocalDb(String dbPath) {
@@ -250,11 +243,7 @@ public class RegisterUser {
     try {
       UserInfo fetchedUser = dbOps.getUserInfo(username);
       // check the sentinel value to decide whether the user exists
-      if (fetchedUser.lastLoggedInTime != -1) {
-        return true;
-      }
-
-      return false;
+      return fetchedUser.lastLoggedInTime != -1;
     } catch (Exception e) {
       return false;
     }
@@ -264,12 +253,9 @@ public class RegisterUser {
     try {
       UserInfo fetchedUser = dbOps.getUserInfoByEmail(email);
       // check the sentinel value to decide whether the user exists
-      if (fetchedUser.lastLoggedInTime != -1) {
-        return true;
-      }
-
-      return false;
+      return fetchedUser.lastLoggedInTime != -1;
     } catch (Exception e) {
+      System.err.println("[RegisterUser.isEmailAlreadyUsed] Failed to check if the email is already used: " + e);
       return false;
     }
   }
@@ -294,7 +280,7 @@ public class RegisterUser {
     } catch (Exception e) {
       System.err.println(
           "[RegisterUser] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
-              + e.toString());
+              + e);
       System.exit(1);
     }
   }
@@ -326,15 +312,19 @@ public class RegisterUser {
       }
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.FailedToCreateDbDir,
-          "[RegisterUser.register] Failed to create the YAPM directory. Given exception: " + e.toString());
+          "[RegisterUser.register] Failed to create the YAPM directory. Given exception: " + e);
     }
 
     try {
-      this.dbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64, this.localDbFilePath,
+      BackendError resp = this.dbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
+          this.localDbFilePath,
           System.currentTimeMillis());
+      if (resp != null) {
+        return resp;
+      }
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
-          "[RegisterUser.register] Failed to add user to the database. Given exception: " + e.toString());
+          "[RegisterUser.register] Failed to add user to the database. Given exception: " + e);
     }
 
     return null;
