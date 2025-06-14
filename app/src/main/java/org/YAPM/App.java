@@ -7,6 +7,7 @@ import javax.swing.*;
 
 public class App {
   public static LoginUser currentLoginUser;
+
   public static void main(String[] args) {
     try {
       FlatNordIJTheme.setup();

@@ -14,10 +14,10 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class LoginUser {
-  private DBOperations dbOps;
+  private final DBOperations dbOps;
   private String username;
   private String email;
-  private String plaintextPassword;
+  private final String plaintextPassword;
   private String hashedPassword;
   private String dbPath;
   private UserInfo fetchedUser;
@@ -43,7 +43,7 @@ public class LoginUser {
       }
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
-          "[LoginUser.login] Failed to get master user info from database. Given exception: " + e.toString());
+          "[LoginUser.login] Failed to get master user info from database. Given exception: " + e);
     }
 
     generatePasswordHash();
@@ -59,7 +59,7 @@ public class LoginUser {
       this.dbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
     } catch (Exception e) {
       // it's ok even if it fails to update. Just let it know in the logs
-      System.err.println("[LoginUser.login] Failed to update the last login time: " + e.toString());
+      System.err.println("[LoginUser.login] Failed to update the last login time: " + e);
     }
 
     return null;
@@ -72,9 +72,9 @@ public class LoginUser {
     for (int i = 0; i < uname.length(); i++) {
       char c = uname.charAt(i);
 
-      boolean isLowercase = ((c >= 'a') && (c <= 'z')) ? true : false;
-      boolean isUppercase = ((c >= 'A') && (c <= 'Z')) ? true : false;
-      boolean isNumeric = ((c >= '0') && (c <= '9')) ? true : false;
+      boolean isLowercase = (c >= 'a') && (c <= 'z');
+      boolean isUppercase = (c >= 'A') && (c <= 'Z');
+      boolean isNumeric = (c >= '0') && (c <= '9');
 
       if (!isLowercase && !isUppercase && !isNumeric) {
         return false;
@@ -104,7 +104,7 @@ public class LoginUser {
     } catch (Exception e) {
       System.err.println(
           "[RegisterUser] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
-              + e.toString());
+              + e);
       System.exit(1);
     }
   }
@@ -127,9 +127,7 @@ public class LoginUser {
   }
 
   private String getRandomUUID() {
-    String randUUID = UUID.randomUUID().toString();
-
-    return randUUID;
+    return UUID.randomUUID().toString();
   }
 
   private BackendError createLocalDb(String dbPath) {
