@@ -359,14 +359,10 @@ public class VaultManager implements AutoCloseable {
             .prepareStatement("SELECT id, url, username, password, iv, timestamp FROM entries");
         ResultSet rsOther = psOther.executeQuery()) {
       String lookup = "SELECT timestamp FROM entries WHERE id = ?";
-      String insert = "INSERT INTO entries(id, url, username, password, iv, timestamp) VALUES(?,?,?,?,?,?)";
+      String insert = "INSERT INTO entries(url, username, password, iv, timestamp) VALUES(?,?,?,?,?)";
       String updateSql = "UPDATE entries " +
-          "SET url       = ?, " +
-          " username  = ?, " +
-          " password  = ?, " +
-          " iv        = ?, " +
-          " timestamp = ? " +
-          " WHERE id = ?";
+          "SET url = ?, username = ?, password = ?, iv = ?, timestamp = ? " +
+          "WHERE id = ?";
 
       try (PreparedStatement psLookup = this.connection.prepareStatement(lookup);
           PreparedStatement psInsert = this.connection.prepareStatement(insert);
@@ -375,39 +371,53 @@ public class VaultManager implements AutoCloseable {
           int otherId = rsOther.getInt("id");
           String otherUrl = rsOther.getString("url");
           String otherUsername = rsOther.getString("username");
-          String otherCipher = rsOther.getString("password");
-          String otherIv = rsOther.getString("iv");
+          String otherCipherB64 = rsOther.getString("password");
+          String otherIvB64 = rsOther.getString("iv");
           long otherTimestamp = rsOther.getLong("timestamp");
+
+          EncryptedData otherData = new EncryptedData(otherCipherB64, otherIvB64,
+              Base64.getEncoder().encodeToString(otherSalt));
+          String plainPasswd;
+
+          try {
+            plainPasswd = CryptoUtils.decrypt(otherData, other.masterPasswd);
+          } catch (Exception e) {
+            throw new SQLException("[VaultManager.merge] ERROR: ", e);
+          }
+
+          EncryptedData newData;
+          try {
+            newData = CryptoUtils.encrypt(plainPasswd, this.masterPasswd, salt);
+          } catch (Exception e) {
+            throw new SQLException("[VaultManager.merge] ERROR: ", e);
+          }
+          String cipherA = newData.getCipherText();
+          String ivA = newData.getIV();
 
           psLookup.setInt(1, otherId);
           try (ResultSet rsSelf = psLookup.executeQuery()) {
             if (rsSelf.next()) {
               long selfTimestamp = rsSelf.getLong("timestamp");
-
               if (otherTimestamp > selfTimestamp) {
                 psUpdate.setString(1, otherUrl);
                 psUpdate.setString(2, otherUsername);
-                psUpdate.setString(3, otherCipher);
-                psUpdate.setString(4, otherIv);
+                psUpdate.setString(3, cipherA);
+                psUpdate.setString(4, ivA);
                 psUpdate.setLong(5, otherTimestamp);
                 psUpdate.setInt(6, otherId);
-
                 psUpdate.executeUpdate();
               }
             } else {
-              psInsert.setInt(1, otherId);
-              psInsert.setString(2, otherUrl);
-              psInsert.setString(3, otherUsername);
-              psInsert.setString(4, otherCipher);
-              psInsert.setString(5, otherIv);
-              psInsert.setLong(6, otherTimestamp);
-
+              psInsert.setString(1, otherUrl);
+              psInsert.setString(2, otherUsername);
+              psInsert.setString(3, cipherA);
+              psInsert.setString(4, ivA);
+              psInsert.setLong(5, otherTimestamp);
               psInsert.executeUpdate();
             }
           }
         }
       }
-
       this.connection.commit();
       return VaultStatus.DBMergeSuccess;
     } catch (SQLException e) {

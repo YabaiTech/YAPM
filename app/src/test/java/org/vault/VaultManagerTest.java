@@ -149,4 +149,69 @@ class VaultManagerTest {
         "Editing with wrong master password should return DBWrongMasterPasswd");
     assertEquals(VaultStatus.DBCloseSuccess, vmWrong.closeDB());
   }
+
+  @Test
+  public void testMergeConflictingWithMicroscopicInterval() throws Exception {
+    String dbPath2 = tmpDir.resolve("otherVault.db").toString();
+    VaultManager v2 = new VaultManager(dbPath2, MASTER_PASSWD);
+    assertEquals(VaultStatus.DBConnectionSuccess, v2.connectToDB());
+    assertEquals(VaultStatus.DBCreateVaultSuccess, v2.createVault());
+
+    assertEquals(VaultStatus.DBAddEntrySuccess, vm.addEntry("urlA", "userA", "passA"));
+    assertEquals(VaultStatus.DBAddEntrySuccess, v2.addEntry("urlB", "userB", "passB"));
+
+    assertEquals(VaultStatus.DBMergeSuccess, vm.merge(v2));
+
+    ArrayList<Entry> merged = new ArrayList<>();
+    assertEquals(VaultStatus.DBOpenVaultSuccess, vm.openVault(merged));
+
+    assertEquals(1, merged.size());
+
+    boolean foundA = merged.stream()
+        .anyMatch(e -> e.getURL().equals("urlB") && e.getUsername().equals("userB") && e.getPasswd().equals("passB"));
+    boolean foundB = merged.stream()
+        .anyMatch(e -> e.getURL().equals("urlB") && e.getUsername().equals("userB") && e.getPasswd().equals("passB"));
+
+    assertTrue(foundA && foundB, "Both vault entries only have the latest values after merge.");
+
+    assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
+  }
+
+  @Test
+  public void testMergeConflicting() throws Exception {
+    String dbPath2 = tmpDir.resolve("otherVault.db").toString();
+    VaultManager v2 = new VaultManager(dbPath2, MASTER_PASSWD);
+    assertEquals(VaultStatus.DBConnectionSuccess, v2.connectToDB());
+    assertEquals(VaultStatus.DBCreateVaultSuccess, v2.createVault());
+
+    assertEquals(VaultStatus.DBAddEntrySuccess, vm.addEntry("site", "alice", "oldPass"));
+    Thread.sleep(10);
+    assertEquals(VaultStatus.DBAddEntrySuccess, v2.addEntry("site-new", "alice-new", "newPass"));
+
+    assertEquals(VaultStatus.DBMergeSuccess, vm.merge(v2));
+
+    ArrayList<Entry> merged = new ArrayList<>();
+    assertEquals(VaultStatus.DBOpenVaultSuccess, vm.openVault(merged));
+    assertEquals(1, merged.size());
+
+    Entry e = merged.get(0);
+    assertEquals("site-new", e.getURL());
+    assertEquals("alice-new", e.getUsername());
+    assertEquals("newPass", e.getPasswd());
+
+    assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
+  }
+
+  @Test
+  public void testMergeWithDifferentPasswordsFails() throws Exception {
+    String dbPath2 = tmpDir.resolve("otherVault.db").toString();
+    VaultManager v2 = new VaultManager(dbPath2, WRONG_PASSWD);
+
+    assertEquals(VaultStatus.DBConnectionSuccess, v2.connectToDB());
+    assertEquals(VaultStatus.DBCreateVaultSuccess, v2.createVault());
+
+    assertThrows(IllegalArgumentException.class, () -> vm.merge(v2));
+
+    assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
+  }
 }
