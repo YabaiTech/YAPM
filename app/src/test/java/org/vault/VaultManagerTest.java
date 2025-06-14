@@ -100,4 +100,53 @@ class VaultManagerTest {
     assertEquals(VaultStatus.DBAddEntryFailureEmptyParameter, vm.addEntry("url", "", "pwd"));
     assertEquals(VaultStatus.DBAddEntryFailureEmptyParameter, vm.addEntry("url", "user", ""));
   }
+
+  @Test
+  public void testEditEntrySuccess() throws Exception {
+    assertEquals(VaultStatus.DBAddEntrySuccess, vm.addEntry("siteA", "alice", "passA"));
+
+    VaultStatus status = vm.editEntry(1, "siteB", "bob", "passB");
+    assertEquals(VaultStatus.DBEditEntrySuccess, status, "Editing existing entry should succeed");
+
+    ArrayList<Entry> entries = new ArrayList<Entry>();
+    assertEquals(VaultStatus.DBOpenVaultSuccess, vm.openVault(entries));
+    assertEquals(1, entries.size());
+
+    Entry e = entries.get(0);
+    assertEquals("siteB", e.getURL());
+    assertEquals("bob", e.getUsername());
+    assertEquals("passB", e.getPasswd());
+  }
+
+  @Test
+  public void testEditEntryEmptyParameter() throws Exception {
+    vm.addEntry("url", "user", "pwd");
+
+    assertEquals(VaultStatus.DBEditEntryFailureEmptyParameter,
+        vm.editEntry(1, "", "user2", "pwd2"));
+    assertEquals(VaultStatus.DBEditEntryFailureEmptyParameter,
+        vm.editEntry(1, "url2", "", "pwd2"));
+    assertEquals(VaultStatus.DBEditEntryFailureEmptyParameter,
+        vm.editEntry(1, "url2", "user2", ""));
+  }
+
+  @Test
+  public void testEditEntryInvalidID() throws Exception {
+    assertEquals(VaultStatus.DBEditEntryFailureInvalidID,
+        vm.editEntry(1, "url", "user", "pwd"));
+  }
+
+  @Test
+  public void testEditEntryWrongMasterPasswd() throws Exception {
+    vm.addEntry("origUrl", "origUser", "origPwd");
+    vm.closeDB();
+
+    VaultManager vmWrong = new VaultManager(dbPath, WRONG_PASSWD);
+    assertEquals(VaultStatus.DBConnectionSuccess, vmWrong.connectToDB());
+
+    VaultStatus status = vmWrong.editEntry(1, "newUrl", "newUser", "newPwd");
+    assertEquals(VaultStatus.DBWrongMasterPasswd, status,
+        "Editing with wrong master password should return DBWrongMasterPasswd");
+    assertEquals(VaultStatus.DBCloseSuccess, vmWrong.closeDB());
+  }
 }
