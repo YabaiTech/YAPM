@@ -63,6 +63,32 @@ public class HomePanel extends JPanel {
         }
 
         table = new JTable(new DefaultTableModel(rowData, columnNames));
+
+        table.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                int row = table.rowAtPoint(e.getPoint());
+                int col = table.columnAtPoint(e.getPoint());
+
+                // Check if password column is clicked
+                if (col == 2 && row >= 0) {
+                    String password = (String) table.getValueAt(row, col);
+                    Toolkit.getDefaultToolkit().getSystemClipboard()
+                            .setContents(new java.awt.datatransfer.StringSelection(password), null);
+
+                    JOptionPane.showMessageDialog(
+                            HomePanel.this,
+                            "Password copied to clipboard!",
+                            "Copied",
+                            JOptionPane.INFORMATION_MESSAGE
+                    );
+
+                    // Clear selection to remove visual highlight
+                    table.clearSelection();
+                }
+            }
+        });
+
         table.setFillsViewportHeight(true);
         table.setRowHeight(30);
         table.setFont(new Font("Segoe UI", Font.PLAIN, 14));
