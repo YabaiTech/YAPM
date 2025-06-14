@@ -37,7 +37,8 @@ public class VaultManager implements AutoCloseable {
           "  url TEXT NOT NULL," +
           "  username TEXT NOT NULL," +
           "  password TEXT NOT NULL," +
-          "  iv TEXT NOT NULL" +
+          "  iv TEXT NOT NULL," +
+          "  timestamp INTEGER NOT NULL" +
           ");");
       statement.executeUpdate("DELETE FROM metadata;");
 
@@ -159,11 +160,12 @@ public class VaultManager implements AutoCloseable {
     String ivB64 = encrypted.getIV();
 
     try (PreparedStatement preparedStatement = this.connection
-        .prepareStatement("INSERT INTO entries(url, username, password, iv) VALUES(?,?,?,?)")) {
+        .prepareStatement("INSERT INTO entries(url, username, password, iv, timestamp) VALUES(?,?,?,?,?)")) {
       preparedStatement.setString(1, urlField);
       preparedStatement.setString(2, usernameField);
       preparedStatement.setString(3, cipherB64);
       preparedStatement.setString(4, ivB64);
+      preparedStatement.setLong(5, System.currentTimeMillis());
 
       preparedStatement.executeUpdate();
       this.connection.commit();
@@ -250,14 +252,15 @@ public class VaultManager implements AutoCloseable {
 
     try (PreparedStatement ps = connection.prepareStatement(
         "UPDATE entries " +
-            "SET url = ?, username = ?, password = ?, iv = ? " +
+            "SET url = ?, username = ?, password = ?, iv = ?, timestamp = ? " +
             "WHERE id = ?")) {
 
       ps.setString(1, newUrl);
       ps.setString(2, newUsername);
       ps.setString(3, cipherB64);
       ps.setString(4, ivB64);
-      ps.setInt(5, entryID);
+      ps.setLong(5, System.currentTimeMillis());
+      ps.setInt(6, entryID);
 
       int affected = ps.executeUpdate();
       if (affected == 0) {
@@ -311,6 +314,107 @@ public class VaultManager implements AutoCloseable {
     }
 
     return Base64.getDecoder().decode(saltB64);
+  }
+
+  public VaultStatus merge(VaultManager other) throws IllegalStateException {
+    if (!this.masterPasswd.equals(other.masterPasswd)) {
+      throw new IllegalArgumentException(
+          "[VaultManager.merge] ERROR: Cannot two vaults with different master password.");
+    }
+    if (this.connection == null) {
+      if (this.connectToDB() != VaultStatus.DBConnectionSuccess) {
+        throw new IllegalStateException("[VaultManager.merge] ERROR: Cannot open this vault.");
+      }
+    }
+    if (other.connection == null) {
+      if (other.connectToDB() != VaultStatus.DBConnectionSuccess) {
+        throw new IllegalStateException("[VaultManager.merge] ERROR: Cannot open the other vault.");
+      }
+    }
+
+    byte[] salt, otherSalt;
+    try {
+      salt = this.verifyMasterPasswd(this.masterPasswd);
+      otherSalt = other.verifyMasterPasswd(other.masterPasswd);
+
+      if (salt == null || otherSalt == null) {
+        return VaultStatus.DBMergeFailureException;
+      }
+    } catch (IllegalStateException e) {
+      System.out.println("[VaultManager.editEntry] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBBadVerificationFormat;
+    } catch (SecurityException e) {
+      System.out.println("[VaultManager.editEntry] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBWrongMasterPasswd;
+    } catch (Exception e) {
+      System.out.println("[VaultManager.editEnty] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBMergeFailureException;
+    }
+
+    try (
+        PreparedStatement psOther = other.connection
+            .prepareStatement("SELECT id, url, username, password, iv, timestamp FROM entries");
+        ResultSet rsOther = psOther.executeQuery()) {
+      String lookup = "SELECT timestamp FROM entries WHERE id = ?";
+      String insert = "INSERT INTO entries(id, url, username, password, iv, timestamp) VALUES(?,?,?,?,?,?)";
+      String updateSql = "UPDATE entries " +
+          "SET url       = ?, " +
+          " username  = ?, " +
+          " password  = ?, " +
+          " iv        = ?, " +
+          " timestamp = ? " +
+          " WHERE id = ?";
+
+      try (PreparedStatement psLookup = this.connection.prepareStatement(lookup);
+          PreparedStatement psInsert = this.connection.prepareStatement(insert);
+          PreparedStatement psUpdate = this.connection.prepareStatement(updateSql)) {
+        while (rsOther.next()) {
+          int otherId = rsOther.getInt("id");
+          String otherUrl = rsOther.getString("url");
+          String otherUsername = rsOther.getString("username");
+          String otherCipher = rsOther.getString("password");
+          String otherIv = rsOther.getString("iv");
+          long otherTimestamp = rsOther.getLong("timestamp");
+
+          psLookup.setInt(1, otherId);
+          try (ResultSet rsSelf = psLookup.executeQuery()) {
+            if (rsSelf.next()) {
+              long selfTimestamp = rsSelf.getLong("timestamp");
+
+              if (otherTimestamp > selfTimestamp) {
+                psUpdate.setString(1, otherUrl);
+                psUpdate.setString(2, otherUsername);
+                psUpdate.setString(3, otherCipher);
+                psUpdate.setString(4, otherIv);
+                psUpdate.setLong(5, otherTimestamp);
+                psUpdate.setInt(6, otherId);
+
+                psUpdate.executeUpdate();
+              }
+            } else {
+              psInsert.setInt(1, otherId);
+              psInsert.setString(2, otherUrl);
+              psInsert.setString(3, otherUsername);
+              psInsert.setString(4, otherCipher);
+              psInsert.setString(5, otherIv);
+              psInsert.setLong(6, otherTimestamp);
+
+              psInsert.executeUpdate();
+            }
+          }
+        }
+      }
+
+      this.connection.commit();
+      return VaultStatus.DBMergeSuccess;
+    } catch (SQLException e) {
+      System.out.println("[VaultManager.merge] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBMergeFailureException;
+    }
   }
 
   public VaultStatus connectToDB() {
