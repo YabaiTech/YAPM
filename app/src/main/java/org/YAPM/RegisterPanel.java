@@ -116,7 +116,7 @@ public class RegisterPanel extends JPanel {
                         """
                         Username Rules:
                         - Must be 4–20 characters long
-                        - Only letters, digits, underscores allowed
+                        - Only letters, digits
                         
                         Password Rules:
                         - Minimum 8 characters
