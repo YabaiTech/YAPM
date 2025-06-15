@@ -26,6 +26,10 @@ public enum VaultStatus {
   DBBadVerificationFormat,
   DBWrongMasterPasswd,
 
+  DBMergeSuccess,
+  DBMergeFailureException,
+  DBMergeDifferentMasterPasswd,
+
   DBCloseSuccess,
   DBCloseFailure
 }
