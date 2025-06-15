@@ -217,7 +217,7 @@ class VaultManagerTest {
     assertEquals(VaultStatus.DBConnectionSuccess, v2.connectToDB());
     assertEquals(VaultStatus.DBCreateVaultSuccess, v2.createVault());
 
-    assertThrows(IllegalArgumentException.class, () -> vm.merge(v2));
+    assertEquals(VaultStatus.DBMergeDifferentMasterPasswd, vm.merge(v2));
 
     assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
   }

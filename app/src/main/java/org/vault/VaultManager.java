@@ -316,19 +316,18 @@ public class VaultManager implements AutoCloseable {
     return Base64.getDecoder().decode(saltB64);
   }
 
-  public VaultStatus merge(VaultManager other) throws IllegalStateException {
+  public VaultStatus merge(VaultManager other) {
     if (!this.masterPasswd.equals(other.masterPasswd)) {
-      throw new IllegalArgumentException(
-          "[VaultManager.merge] ERROR: Cannot two vaults with different master password.");
+      return VaultStatus.DBMergeDifferentMasterPasswd;
     }
     if (this.connection == null) {
       if (this.connectToDB() != VaultStatus.DBConnectionSuccess) {
-        throw new IllegalStateException("[VaultManager.merge] ERROR: Cannot open this vault.");
+        return VaultStatus.DBConnectionFailure;
       }
     }
     if (other.connection == null) {
       if (other.connectToDB() != VaultStatus.DBConnectionSuccess) {
-        throw new IllegalStateException("[VaultManager.merge] ERROR: Cannot open the other vault.");
+        return VaultStatus.DBConnectionFailure;
       }
     }
 
@@ -382,14 +381,18 @@ public class VaultManager implements AutoCloseable {
           try {
             plainPasswd = CryptoUtils.decrypt(otherData, other.masterPasswd);
           } catch (Exception e) {
-            throw new SQLException("[VaultManager.merge] ERROR: ", e);
+            System.out.println("[VaultManager.merge] ERROR: ");
+            e.printStackTrace();
+            return VaultStatus.DBMergeFailureException;
           }
 
           EncryptedData newData;
           try {
             newData = CryptoUtils.encrypt(plainPasswd, this.masterPasswd, salt);
           } catch (Exception e) {
-            throw new SQLException("[VaultManager.merge] ERROR: ", e);
+            System.out.println("[VaultManager.merge] ERROR: ");
+            e.printStackTrace();
+            return VaultStatus.DBMergeFailureException;
           }
           String cipherA = newData.getCipherText();
           String ivA = newData.getIV();

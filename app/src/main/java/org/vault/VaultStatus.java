@@ -28,6 +28,7 @@ public enum VaultStatus {
 
   DBMergeSuccess,
   DBMergeFailureException,
+  DBMergeDifferentMasterPasswd,
 
   DBCloseSuccess,
   DBCloseFailure
