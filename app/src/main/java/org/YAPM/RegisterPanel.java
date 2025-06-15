@@ -157,7 +157,8 @@ public class RegisterPanel extends JPanel {
             String pwd = new String(passField.getPassword());
 
             DBConnection db = new DBConnection();
-            RegisterUser reg = new RegisterUser(db);
+            CloudDbConnection cloudDb = new CloudDbConnection();
+            RegisterUser reg = new RegisterUser(db, cloudDb);
 
             BackendError err;
 

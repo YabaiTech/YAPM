@@ -6,7 +6,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.Random;
 
 class RegisterUserTest {
-  DBConnection db = new DBConnection();
+  DBConnection localDb = new DBConnection();
+  CloudDbConnection cloudDb = new CloudDbConnection();
 
   int getRandomNum() {
     // generate a random number from 1 to 90,000
@@ -20,7 +21,7 @@ class RegisterUserTest {
 
   @Test
   void validUsernameGetsAccepted() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setUsername("dipta123");
 
     assertNull(response);
@@ -28,7 +29,7 @@ class RegisterUserTest {
 
   @Test
   void invalidUsernameGetsAccepted() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setUsername("atr-ues");
 
     assertEquals(BackendError.ErrorTypes.InvalidUserName, response.getErrorType());
@@ -36,7 +37,7 @@ class RegisterUserTest {
 
   @Test
   void validPasswordGetsAccepted() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setPassword("aBc123#!");
 
     assertNull(response);
@@ -44,7 +45,7 @@ class RegisterUserTest {
 
   @Test
   void lessThan8CharPasswordsGetRejected() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setPassword("aB9!");
 
     assertEquals(BackendError.ErrorTypes.PasswordNeedsToBeAtleast8Chars, response.getErrorType());
@@ -52,7 +53,7 @@ class RegisterUserTest {
 
   @Test
   void passwordsWithUnallowedCharsGetRejected() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setPassword("🙂aBc123#!");
 
     BackendError.ErrorTypes expected = BackendError.ErrorTypes.PasswordContainsUnallowedChars;
@@ -62,7 +63,7 @@ class RegisterUserTest {
 
   @Test
   void passwordsWithoutLowercaseGetsRejected() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setPassword("XYZ123#!");
 
     assertEquals(BackendError.ErrorTypes.PasswordNeedsAtleast1Lowercase, response.getErrorType());
@@ -70,7 +71,7 @@ class RegisterUserTest {
 
   @Test
   void passwordsWithoutUppercaseGetsRejected() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setPassword("xyz123#!");
 
     assertEquals(BackendError.ErrorTypes.PasswordNeedsAtleast1Uppercase, response.getErrorType());
@@ -78,7 +79,7 @@ class RegisterUserTest {
 
   @Test
   void passwordsWithoutNumberGetsRejected() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setPassword("xyzAbc#!");
 
     assertEquals(BackendError.ErrorTypes.PasswordNeedsAtleast1Number, response.getErrorType());
@@ -86,7 +87,7 @@ class RegisterUserTest {
 
   @Test
   void passwordsWithoutSpecialCharGetsRejected() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setPassword("xyzAbc123");
 
     assertEquals(BackendError.ErrorTypes.PasswordNeedsAtleast1SpecialChar, response.getErrorType());
@@ -94,7 +95,7 @@ class RegisterUserTest {
 
   @Test
   void addsUserIfEverythingIsValid() {
-    RegisterUser reg = new RegisterUser(this.db);
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
 
     // generate a random number from 1 to 90,000
     int randNum = getRandomNum();
