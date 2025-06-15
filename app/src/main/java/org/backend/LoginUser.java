@@ -14,16 +14,19 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class LoginUser {
-  private final DBOperations dbOps;
+  private final DBOperations localDbOps;
+  private final DBOperations cloudDbOps;
   private String username;
   private String email;
   private final String plaintextPassword;
   private String hashedPassword;
   private String dbPath;
   private UserInfo fetchedUser;
+  private UserInfo cloudFetchedUser;
 
-  public LoginUser(DBConnection db, String accountIdentifier, String pwd) {
-    this.dbOps = new DBOperations(db);
+  public LoginUser(DatabaseConnection localDb, DatabaseConnection cloudDb, String accountIdentifier, String pwd) {
+    this.localDbOps = new DBOperations(localDb);
+    this.cloudDbOps = new DBOperations(cloudDb);
 
     if (isValidUsername(accountIdentifier)) {
       this.username = accountIdentifier;
@@ -37,13 +40,75 @@ public class LoginUser {
   public BackendError login() {
     try {
       if (this.username != null) {
-        this.fetchedUser = this.dbOps.getUserInfo(this.username);
+        this.fetchedUser = this.localDbOps.getUserInfo(this.username);
+        this.cloudFetchedUser = this.cloudDbOps.getUserInfo(this.username);
       } else {
-        this.fetchedUser = this.dbOps.getUserInfoByEmail(this.email);
+        this.fetchedUser = this.localDbOps.getUserInfoByEmail(this.email);
+        this.fetchedUser = this.cloudDbOps.getUserInfoByEmail(this.email);
       }
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
           "[LoginUser.login] Failed to get master user info from database. Given exception: " + e);
+    }
+
+    BackendError response;
+
+    // registered in the cloud, but not on local
+    if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
+      try {
+        response = this.localDbOps.addUser(cloudFetchedUser.username, cloudFetchedUser.email,
+            cloudFetchedUser.hashedPassword,
+            cloudFetchedUser.salt, cloudFetchedUser.passwordDbPath, cloudFetchedUser.lastLoggedInTime);
+
+        if (response != null) {
+          return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
+              "[LoginUser.login] Failed to add the cloud user entry to the local database: " + response.getErrorType()
+                  + " -> " + response.getContext());
+        }
+      } catch (Exception e) {
+        return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
+            "[LoginUser.login] Failed to add the cloud user entry to the local database: " + e);
+      }
+    }
+
+    // registered in the local, but not on cloud
+    if ((this.cloudFetchedUser.lastLoggedInTime == -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
+      try {
+        response = this.cloudDbOps.addUser(fetchedUser.username, fetchedUser.email, fetchedUser.hashedPassword,
+            fetchedUser.salt, fetchedUser.passwordDbPath, fetchedUser.lastLoggedInTime);
+
+        if (response != null) {
+          return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
+              "[LoginUser.login] Failed to add the local user entry to the cloud database: " + response.getErrorType()
+                  + " -> " + response.getContext());
+        }
+      } catch (Exception e) {
+        return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
+            "[LoginUser.login] Failed to add the local user entry to the cloud database: " + e);
+      }
+    }
+
+    // registered in both
+    if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
+      // different entry on local and cloud DB -> delete local user
+      boolean conflictingUsername = fetchedUser.username != cloudFetchedUser.username;
+      boolean conflictingEmail = fetchedUser.email != cloudFetchedUser.email;
+      boolean conflictingHashedPassword = fetchedUser.hashedPassword != cloudFetchedUser.hashedPassword;
+
+      try {
+        if (conflictingUsername || conflictingEmail || conflictingHashedPassword) {
+          response = this.localDbOps.deleteUser(this.fetchedUser.username);
+
+          if (response != null) {
+            return new BackendError(BackendError.ErrorTypes.FailedToRemoveLocalConflict,
+                "[LoginUser.login] Failed to remove the local conflicting entry: " + response.getErrorType()
+                    + " -> " + response.getContext());
+          }
+        }
+      } catch (Exception e) {
+        return new BackendError(BackendError.ErrorTypes.FailedToRemoveLocalConflict,
+            "[LoginUser.login] Failed to remove the local conflicting entry: " + e);
+      }
     }
 
     generatePasswordHash();
@@ -56,7 +121,8 @@ public class LoginUser {
 
     // successful login
     try {
-      this.dbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
+      this.localDbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
+      this.cloudDbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
     } catch (Exception e) {
       // it's ok even if it fails to update. Just let it know in the logs
       System.err.println("[LoginUser.login] Failed to update the last login time: " + e);

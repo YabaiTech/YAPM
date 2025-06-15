@@ -34,6 +34,10 @@ public class BackendError {
     FileSystemError,
 
     LocalDBCreationFailed,
+
+    FailedToSyncWithCloud,
+    FailedToSyncWithLocal,
+    FailedToRemoveLocalConflict,
   }
 
   private final ErrorTypes errorType;

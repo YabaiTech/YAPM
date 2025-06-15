@@ -34,6 +34,24 @@ public class DBOperations {
     }
   }
 
+  public BackendError deleteUser(String username) throws SQLException {
+    String query = "DELETE FROM `" + EnvVars.MASTER_USER_TABLE
+        + "` WHERE `username`=?";
+
+    try (PreparedStatement ps = con.prepareStatement(query)) {
+      ps.setString(1, username);
+
+      int opStat = ps.executeUpdate();
+
+      if (opStat <= 0) {
+        return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+            "[DBOperations.deleteUser] Failed to delete user. User not found!");
+      }
+
+      return null;
+    }
+  }
+
   public UserInfo getUserInfo(String username) throws SQLException {
     String query = "SELECT * FROM `" + EnvVars.MASTER_USER_TABLE + "` WHERE `username`=?";
 
