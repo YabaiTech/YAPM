@@ -5,8 +5,8 @@ import java.sql.*;
 public class DBOperations {
   private final Connection con;
 
-  public DBOperations(DBConnection db) {
-    this.con = db.con;
+  public DBOperations(DatabaseConnection db) {
+    this.con = db.getConnection();
   }
 
   public BackendError addUser(String username, String email, String hashedPassword, String saltB64, String dbFilePath,
@@ -28,6 +28,24 @@ public class DBOperations {
       if (opStat != 1) {
         return new BackendError(BackendError.ErrorTypes.DbTransactionError,
             "[DBOperations.addUser] Failed to add user");
+      }
+
+      return null;
+    }
+  }
+
+  public BackendError deleteUser(String username) throws SQLException {
+    String query = "DELETE FROM `" + EnvVars.MASTER_USER_TABLE
+        + "` WHERE `username`=?";
+
+    try (PreparedStatement ps = con.prepareStatement(query)) {
+      ps.setString(1, username);
+
+      int opStat = ps.executeUpdate();
+
+      if (opStat <= 0) {
+        return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+            "[DBOperations.deleteUser] Failed to delete user. User not found!");
       }
 
       return null;

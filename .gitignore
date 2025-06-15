@@ -1,3 +1,7 @@
+# Ignore all .env file except sample.env
+*.env
+!sample.env
+
 # Ignore Echlipse LSP (JDTLS) specific files
 .settings
 .project
