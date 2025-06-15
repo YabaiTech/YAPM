@@ -20,6 +20,8 @@ public class BackendError {
     HashedPasswordNotGenerated,
     SaltForHashNotGenerated,
 
+    UserDoesNotExist,
+
     UsernameAlreadyExists,
     EmailAlreadyExists,
 

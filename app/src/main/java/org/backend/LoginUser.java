@@ -44,7 +44,7 @@ public class LoginUser {
         this.cloudFetchedUser = this.cloudDbOps.getUserInfo(this.username);
       } else {
         this.fetchedUser = this.localDbOps.getUserInfoByEmail(this.email);
-        this.fetchedUser = this.cloudDbOps.getUserInfoByEmail(this.email);
+        this.cloudFetchedUser = this.cloudDbOps.getUserInfoByEmail(this.email);
       }
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
@@ -53,8 +53,16 @@ public class LoginUser {
 
     BackendError response;
 
+    // registered in no DB
+    if ((this.cloudFetchedUser.lastLoggedInTime == -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
+      System.out.println("I'm inside none");
+      return new BackendError(BackendError.ErrorTypes.UserDoesNotExist,
+          "[LoginUser.login] Failed to login. No user registered using that username/email.");
+    }
+
     // registered in the cloud, but not on local
     if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
+      System.out.println("I'm only inside cloud");
       try {
         response = this.localDbOps.addUser(cloudFetchedUser.username, cloudFetchedUser.email,
             cloudFetchedUser.hashedPassword,
@@ -73,6 +81,7 @@ public class LoginUser {
 
     // registered in the local, but not on cloud
     if ((this.cloudFetchedUser.lastLoggedInTime == -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
+      System.out.println("I'm only inside local");
       try {
         response = this.cloudDbOps.addUser(fetchedUser.username, fetchedUser.email, fetchedUser.hashedPassword,
             fetchedUser.salt, fetchedUser.passwordDbPath, fetchedUser.lastLoggedInTime);
@@ -90,6 +99,7 @@ public class LoginUser {
 
     // registered in both
     if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
+      System.out.println("I'm inside both");
       // different entry on local and cloud DB -> delete local user
       boolean conflictingUsername = fetchedUser.username != cloudFetchedUser.username;
       boolean conflictingEmail = fetchedUser.email != cloudFetchedUser.email;
