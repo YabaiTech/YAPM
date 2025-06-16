@@ -327,7 +327,7 @@ public class VaultManager implements AutoCloseable {
     }
     if (other.connection == null) {
       if (other.connectToDB() != VaultStatus.DBConnectionSuccess) {
-        return VaultStatus.DBOtherConnectionFailure;
+        return VaultStatus.DBParameterVaultConnectionFailure;
       }
     }
 
