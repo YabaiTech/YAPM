@@ -169,10 +169,8 @@ class VaultManagerTest {
 
     boolean foundA = merged.stream()
         .anyMatch(e -> e.getURL().equals("urlB") && e.getUsername().equals("userB") && e.getPasswd().equals("passB"));
-    boolean foundB = merged.stream()
-        .anyMatch(e -> e.getURL().equals("urlB") && e.getUsername().equals("userB") && e.getPasswd().equals("passB"));
 
-    assertTrue(foundA && foundB, "Both vault entries only have the latest values after merge.");
+    assertTrue(foundA, "Merged vault should only have the latest.");
 
     assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
   }
@@ -199,12 +197,16 @@ class VaultManagerTest {
 
     Entry e = merged.get(0);
     Entry e1 = merged.get(1);
+    Entry e2 = merged.get(2);
     assertEquals("site-new", e.getURL());
     assertEquals("alice-new", e.getUsername());
     assertEquals("newPass", e.getPasswd());
     assertEquals("site1", e1.getURL());
     assertEquals("alice1", e1.getUsername());
     assertEquals("changedPass1", e1.getPasswd());
+    assertEquals("site2", e2.getURL());
+    assertEquals("alice2", e2.getUsername());
+    assertEquals("oldPass2", e2.getPasswd());
 
     assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
   }

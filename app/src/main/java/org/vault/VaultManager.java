@@ -327,7 +327,7 @@ public class VaultManager implements AutoCloseable {
     }
     if (other.connection == null) {
       if (other.connectToDB() != VaultStatus.DBConnectionSuccess) {
-        return VaultStatus.DBConnectionFailure;
+        return VaultStatus.DBOtherConnectionFailure;
       }
     }
 
@@ -340,15 +340,15 @@ public class VaultManager implements AutoCloseable {
         return VaultStatus.DBMergeFailureException;
       }
     } catch (IllegalStateException e) {
-      System.out.println("[VaultManager.editEntry] ERROR: ");
+      System.out.println("[VaultManager.merge] ERROR: ");
       e.printStackTrace();
       return VaultStatus.DBBadVerificationFormat;
     } catch (SecurityException e) {
-      System.out.println("[VaultManager.editEntry] ERROR: ");
+      System.out.println("[VaultManager.merge] ERROR: ");
       e.printStackTrace();
       return VaultStatus.DBWrongMasterPasswd;
     } catch (Exception e) {
-      System.out.println("[VaultManager.editEnty] ERROR: ");
+      System.out.println("[VaultManager.merge] ERROR: ");
       e.printStackTrace();
       return VaultStatus.DBMergeFailureException;
     }
@@ -357,14 +357,14 @@ public class VaultManager implements AutoCloseable {
         PreparedStatement psOther = other.connection
             .prepareStatement("SELECT id, url, username, password, iv, timestamp FROM entries");
         ResultSet rsOther = psOther.executeQuery()) {
-      String lookup = "SELECT timestamp FROM entries WHERE id = ?";
-      String insert = "INSERT INTO entries(url, username, password, iv, timestamp) VALUES(?,?,?,?,?)";
+      String lookupSql = "SELECT timestamp FROM entries WHERE id = ?";
+      String insertSql = "INSERT INTO entries(url, username, password, iv, timestamp) VALUES(?,?,?,?,?)";
       String updateSql = "UPDATE entries " +
           "SET url = ?, username = ?, password = ?, iv = ?, timestamp = ? " +
           "WHERE id = ?";
 
-      try (PreparedStatement psLookup = this.connection.prepareStatement(lookup);
-          PreparedStatement psInsert = this.connection.prepareStatement(insert);
+      try (PreparedStatement psLookup = this.connection.prepareStatement(lookupSql);
+          PreparedStatement psInsert = this.connection.prepareStatement(insertSql);
           PreparedStatement psUpdate = this.connection.prepareStatement(updateSql)) {
         while (rsOther.next()) {
           int otherId = rsOther.getInt("id");
@@ -421,6 +421,7 @@ public class VaultManager implements AutoCloseable {
           }
         }
       }
+
       this.connection.commit();
       return VaultStatus.DBMergeSuccess;
     } catch (SQLException e) {

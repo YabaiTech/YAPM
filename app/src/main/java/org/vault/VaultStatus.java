@@ -3,6 +3,7 @@ package org.vault;
 public enum VaultStatus {
   DBConnectionSuccess,
   DBConnectionFailure,
+  DBOtherConnectionFailure,
 
   DBCreateVaultSuccess,
   DBCreateVaultFailure,
