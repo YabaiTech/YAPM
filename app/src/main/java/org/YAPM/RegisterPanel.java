@@ -1,6 +1,7 @@
 package org.YAPM;
 
 import com.formdev.flatlaf.FlatClientProperties;
+import org.backend.*;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -9,7 +10,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.font.TextAttribute;
 import java.util.Map;
-import org.backend.*;
 
 public class RegisterPanel extends JPanel {
 
@@ -22,6 +22,7 @@ public class RegisterPanel extends JPanel {
         Color labelColor = UIManager.getColor("Label.disabledForeground");
         Color accentColor = UIManager.getColor("Component.focusColor");
 
+        // Header
         JLabel header = new JLabel("YAPM - Register", SwingConstants.CENTER);
         header.setFont(new Font("Segoe UI", Font.BOLD, 24));
         header.setOpaque(true);
@@ -30,6 +31,7 @@ public class RegisterPanel extends JPanel {
         header.setBorder(new EmptyBorder(20, 0, 20, 0));
         add(header, BorderLayout.NORTH);
 
+        // Center Panel
         JPanel centerWrapper = new JPanel(new GridBagLayout());
         centerWrapper.setBackground(darkBg);
 
@@ -37,11 +39,12 @@ public class RegisterPanel extends JPanel {
         formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
         formPanel.setBackground(darkBg);
         formPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(formBorderColor),
-                new EmptyBorder(20, 20, 20, 20)));
+            BorderFactory.createLineBorder(formBorderColor),
+            new EmptyBorder(20, 20, 20, 20)));
         formPanel.setMaximumSize(new Dimension(500, Integer.MAX_VALUE));
         formPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        // Username Field
         JLabel usernameLabel = new JLabel("Username:");
         usernameLabel.setForeground(labelColor);
         usernameLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -61,6 +64,7 @@ public class RegisterPanel extends JPanel {
         formPanel.add(usernameField);
         formPanel.add(Box.createVerticalStrut(10));
 
+        // Email Field
         JLabel emailLabel = new JLabel("Email:");
         emailLabel.setForeground(labelColor);
         emailLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -80,6 +84,7 @@ public class RegisterPanel extends JPanel {
         formPanel.add(emailField);
         formPanel.add(Box.createVerticalStrut(10));
 
+        // Password Field
         JLabel passLabel = new JLabel("Password:");
         passLabel.setForeground(labelColor);
         passLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -99,7 +104,7 @@ public class RegisterPanel extends JPanel {
         formPanel.add(passField);
         formPanel.add(Box.createVerticalStrut(20));
 
-        // Place this code after the password field and before the register button
+        // Password Rules Link
         JLabel rulesLabel = new JLabel("View username and password rules");
         rulesLabel.setForeground(accentColor);
         rulesLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
@@ -112,21 +117,28 @@ public class RegisterPanel extends JPanel {
             @Override
             public void mouseClicked(MouseEvent e) {
                 JOptionPane.showMessageDialog(
-                        RegisterPanel.this,
-                        """
-                        Username Rules:
-                        - Must be 4–20 characters long
-                        - Only letters, digits
-                        
-                        Password Rules:
-                        - Minimum 8 characters
-                        - Must include at least one uppercase letter
-                        - Must include one lowercase letter
-                        - Must include one digit
-                        - Must include one special character
-                        """,
-                        "Registration Rules",
-                        JOptionPane.INFORMATION_MESSAGE
+                    RegisterPanel.this,
+                    """
+                    <html><div style='width: 300px;'>
+                    <h3>Registration Rules</h3>
+                    <p><b>Username Requirements:</b></p>
+                    <ul>
+                        <li>4-20 characters long</li>
+                        <li>Only letters (a-z, A-Z) and numbers (0-9)</li>
+                        <li>No spaces or special characters</li>
+                    </ul>
+                    <p><b>Password Requirements:</b></p>
+                    <ul>
+                        <li>Minimum 8 characters</li>
+                        <li>At least one uppercase letter (A-Z)</li>
+                        <li>At least one lowercase letter (a-z)</li>
+                        <li>At least one number (0-9)</li>
+                        <li>At least one special character (!@#$%^&* etc.)</li>
+                    </ul>
+                    </div></html>
+                    """,
+                    "Registration Rules",
+                    JOptionPane.INFORMATION_MESSAGE
                 );
             }
 
@@ -146,10 +158,12 @@ public class RegisterPanel extends JPanel {
         formPanel.add(rulesLabel);
         formPanel.add(Box.createVerticalStrut(10));
 
+        // Register Button
         JButton registerButton = new JButton("Register");
         registerButton.setAlignmentX(LEFT_ALIGNMENT);
         registerButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
         registerButton.setPreferredSize(new Dimension(450, 35));
+        registerButton.setFont(registerButton.getFont().deriveFont(Font.BOLD, 16f));
 
         registerButton.addActionListener(e -> {
             String uname = usernameField.getText().trim();
@@ -163,35 +177,44 @@ public class RegisterPanel extends JPanel {
 
             err = reg.setUsername(uname);
             if (err != null) {
-                JOptionPane.showMessageDialog(RegisterPanel.this, "Username error: " + err.getErrorType(), "Registration Error", JOptionPane.ERROR_MESSAGE);
+                showUserFriendlyError("Username Error", getUsernameErrorMessage(err));
+                usernameField.requestFocus();
                 return;
             }
 
             err = reg.setEmail(email);
             if (err != null) {
-                JOptionPane.showMessageDialog(RegisterPanel.this, "Email error: " + err.getErrorType(), "Registration Error", JOptionPane.ERROR_MESSAGE);
+                showUserFriendlyError("Email Error", getEmailErrorMessage(err));
+                emailField.requestFocus();
                 return;
             }
 
             err = reg.setPassword(pwd);
             if (err != null) {
-                JOptionPane.showMessageDialog(RegisterPanel.this, "Password error: " + err.getErrorType(), "Registration Error", JOptionPane.ERROR_MESSAGE);
+                showUserFriendlyError("Password Error", getPasswordErrorMessage(err));
+                passField.requestFocus();
                 return;
             }
 
             err = reg.register();
             if (err == null) {
-                JOptionPane.showMessageDialog(RegisterPanel.this, "Successfully registered the user!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                mainUI.showPage("login"); // switch to login page on success
+                JOptionPane.showMessageDialog(RegisterPanel.this,
+                    "<html><div style='width: 300px;'>" +
+                        "<h3>Registration Successful!</h3>" +
+                        "<p>You can now login with your credentials.</p>" +
+                        "</div></html>",
+                    "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+                mainUI.showPage("login");
             } else {
-                JOptionPane.showMessageDialog(RegisterPanel.this, "Registration failed: " + err.getErrorType(), "Registration Error", JOptionPane.ERROR_MESSAGE);
+                showUserFriendlyError("Registration Error", getRegistrationErrorMessage(err));
             }
         });
 
         formPanel.add(registerButton);
-
         formPanel.add(Box.createVerticalStrut(15));
 
+        // Login Prompt
         JLabel promptLabel = new JLabel("Already have an account?");
         promptLabel.setForeground(labelColor);
         promptLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -227,10 +250,10 @@ public class RegisterPanel extends JPanel {
         });
 
         formPanel.add(loginNowLabel);
-
         centerWrapper.add(formPanel);
         add(centerWrapper, BorderLayout.CENTER);
 
+        // Footer
         JLabel footer = new JLabel("© 2025 All rights reserved.", SwingConstants.CENTER);
         footer.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         footer.setOpaque(true);
@@ -238,5 +261,95 @@ public class RegisterPanel extends JPanel {
         footer.setForeground(textColor);
         footer.setBorder(new EmptyBorder(20, 0, 20, 0));
         add(footer, BorderLayout.SOUTH);
+    }
+
+    private void showUserFriendlyError(String title, String message) {
+        JOptionPane.showMessageDialog(
+            this,
+            "<html><div style='width: 300px; padding: 5px;'><h3 style='margin-top: 0;'>" + title + "</h3>" + message + "</div></html>",
+            title,
+            JOptionPane.ERROR_MESSAGE
+        );
+    }
+
+    private String getUsernameErrorMessage(BackendError error) {
+        switch (error.getErrorType()) {
+            case InvalidUserName:
+                return "<p>Invalid username format.</p>" +
+                    "<p>Username must:</p>" +
+                    "<ul>" +
+                    "<li>Be 4-20 characters long</li>" +
+                    "<li>Contain only letters and numbers</li>" +
+                    "<li>No spaces or special characters</li>" +
+                    "</ul>";
+            case UsernameAlreadyExists:
+                return "<p>This username is already taken.</p>" +
+                    "<p>Please choose a different username.</p>";
+            case UsernameNotProvided:
+                return "<p>Username is required.</p>" +
+                    "<p>Please enter a username.</p>";
+            default:
+                return "<p>An unknown error occurred with your username.</p>";
+        }
+    }
+
+    private String getEmailErrorMessage(BackendError error) {
+        switch (error.getErrorType()) {
+            case InvalidEmail:
+                return "<p>Invalid email format.</p>" +
+                    "<p>Please enter a valid email address in the format:</p>" +
+                    "<p style='text-align: center;'><b>example@domain.com</b></p>";
+            case EmailAlreadyExists:
+                return "<p>This email is already registered.</p>" +
+                    "<p>If this is your email, please try logging in instead.</p>";
+            case EmailNotProvided:
+                return "<p>Email is required.</p>" +
+                    "<p>Please enter your email address.</p>";
+            default:
+                return "<p>An unknown error occurred with your email.</p>";
+        }
+    }
+
+    private String getPasswordErrorMessage(BackendError error) {
+        switch (error.getErrorType()) {
+            case PasswordNeedsToBeAtleast8Chars:
+                return "<p>Password must be at least 8 characters long.</p>";
+            case PasswordNeedsAtleast1Lowercase:
+                return "<p>Password must contain at least one lowercase letter (a-z).</p>";
+            case PasswordNeedsAtleast1Uppercase:
+                return "<p>Password must contain at least one uppercase letter (A-Z).</p>";
+            case PasswordNeedsAtleast1Number:
+                return "<p>Password must contain at least one number (0-9).</p>";
+            case PasswordNeedsAtleast1SpecialChar:
+                return "<p>Password must contain at least one special character (!@#$%^&* etc.).</p>";
+            case PasswordContainsUnallowedChars:
+                return "<p>Password contains invalid characters.</p>" +
+                    "<p>Only letters, numbers, and standard special characters are allowed.</p>";
+            case PasswordNotProvided:
+                return "<p>Password is required.</p>";
+            default:
+                return "<p>An unknown error occurred with your password.</p>";
+        }
+    }
+
+    private String getRegistrationErrorMessage(BackendError error) {
+        switch (error.getErrorType()) {
+            case LocalDBCreationFailed:
+                return "<p>Failed to create your secure storage.</p>" +
+                    "<p>Please try again or contact support if the problem persists.</p>";
+            case FailedToCreateDbDir:
+                return "<p>System error: Could not create storage directory.</p>" +
+                    "<p>Please check your system permissions or contact support.</p>";
+            case DbTransactionError:
+                return "<p>Database error during registration.</p>" +
+                    "<p>Please try again later or contact support.</p>";
+            case HashedPasswordNotGenerated:
+            case SaltForHashNotGenerated:
+                return "<p>Security error during registration.</p>" +
+                    "<p>This is likely a system problem. Please contact support.</p>";
+            default:
+                return "<p>An unknown error occurred during registration.</p>" +
+                    "<p>Please try again or contact support if the problem persists.</p>";
+        }
     }
 }
