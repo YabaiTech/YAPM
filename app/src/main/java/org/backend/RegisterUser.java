@@ -44,6 +44,10 @@ public class RegisterUser {
    * A valid username can only include alphanumeric characters.
    */
   private boolean isValidUsername(String uname) {
+    if (uname.isEmpty()) {
+      return false;
+    }
+
     for (int i = 0; i < uname.length(); i++) {
       char c = uname.charAt(i);
 
@@ -69,6 +73,10 @@ public class RegisterUser {
   }
 
   private boolean isValidEmail(String email) {
+    if (email.isEmpty()) {
+      return false;
+    }
+
     String[] emailsParts = email.split("@");
     if (emailsParts.length != 2 || emailsParts[0].isEmpty() ||
         emailsParts[1].isEmpty()) {
@@ -76,7 +84,11 @@ public class RegisterUser {
     }
 
     String[] urlParts = emailsParts[1].split("\\.");
-    return urlParts.length >= 2;
+    if (urlParts.length < 2 || urlParts[0].isEmpty() || urlParts[1].isEmpty()) {
+      return false;
+    }
+
+    return true;
   }
 
   public BackendError setPassword(String pwd) {

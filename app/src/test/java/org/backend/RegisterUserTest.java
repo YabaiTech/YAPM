@@ -28,9 +28,17 @@ class RegisterUserTest {
   }
 
   @Test
-  void invalidUsernameGetsAccepted() {
+  void invalidUsernameGetsRejected() {
     RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
     BackendError response = reg.setUsername("atr-ues");
+
+    assertEquals(BackendError.ErrorTypes.InvalidUserName, response.getErrorType());
+  }
+
+  @Test
+  void emptyUsernameGetsRejected() {
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
+    BackendError response = reg.setUsername("");
 
     assertEquals(BackendError.ErrorTypes.InvalidUserName, response.getErrorType());
   }
@@ -91,6 +99,37 @@ class RegisterUserTest {
     BackendError response = reg.setPassword("xyzAbc123");
 
     assertEquals(BackendError.ErrorTypes.PasswordNeedsAtleast1SpecialChar, response.getErrorType());
+  }
+
+  @Test
+  void emptyEmailGetsRejected() {
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
+    BackendError response = reg.setEmail("");
+
+    assertEquals(BackendError.ErrorTypes.InvalidEmail, response.getErrorType());
+  }
+
+  @Test
+  void invalidEmailGetsRejected() {
+    RegisterUser reg = new RegisterUser(this.localDb, this.cloudDb);
+
+    BackendError response = reg.setEmail("helloworld");
+    assertEquals(BackendError.ErrorTypes.InvalidEmail, response.getErrorType());
+
+    response = reg.setEmail("hello@");
+    assertEquals(BackendError.ErrorTypes.InvalidEmail, response.getErrorType());
+
+    response = reg.setEmail("@world");
+    assertEquals(BackendError.ErrorTypes.InvalidEmail, response.getErrorType());
+
+    response = reg.setEmail("hello@world");
+    assertEquals(BackendError.ErrorTypes.InvalidEmail, response.getErrorType());
+
+    response = reg.setEmail("hello@world.");
+    assertEquals(BackendError.ErrorTypes.InvalidEmail, response.getErrorType());
+
+    response = reg.setEmail("hello@.com");
+    assertEquals(BackendError.ErrorTypes.InvalidEmail, response.getErrorType());
   }
 
   @Test

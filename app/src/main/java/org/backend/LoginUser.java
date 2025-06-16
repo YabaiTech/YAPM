@@ -40,9 +40,19 @@ public class LoginUser {
   public BackendError login() {
     try {
       if (this.username != null) {
+        if (this.username.isEmpty()) {
+          return new BackendError(BackendError.ErrorTypes.InvalidLoginCredentials,
+              "[Login.login] Provided username/email can't be empty");
+        }
+
         this.fetchedUser = this.localDbOps.getUserInfo(this.username);
         this.cloudFetchedUser = this.cloudDbOps.getUserInfo(this.username);
       } else {
+        if (this.email.isEmpty()) {
+          return new BackendError(BackendError.ErrorTypes.InvalidLoginCredentials,
+              "[Login.login] Provided username/email can't be empty");
+        }
+
         this.fetchedUser = this.localDbOps.getUserInfoByEmail(this.email);
         this.cloudFetchedUser = this.cloudDbOps.getUserInfoByEmail(this.email);
       }

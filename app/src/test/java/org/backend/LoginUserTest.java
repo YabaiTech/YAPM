@@ -201,12 +201,11 @@ class LoginUserTest {
     LoginUser auth = new LoginUser(this.localDb, this.cloudDb, u0.username, "invalid_Password123@!");
 
     BackendError resp = auth.login();
-    System.out.println("Got: " + resp);
     assertEquals(BackendError.ErrorTypes.InvalidLoginCredentials, resp.getErrorType());
   }
 
   @Test
-  void invalidUsernameFailsToLogIn() {
+  void unregisteredUsernameFailsToLogIn() {
     LoginUser auth = new LoginUser(this.localDb, this.cloudDb, "invalidUsername", this.commonPlaintextPassword);
 
     BackendError resp = auth.login();
@@ -214,11 +213,19 @@ class LoginUserTest {
   }
 
   @Test
-  void invalidEmailFailsToLogIn() {
+  void unregisteredEmailFailsToLogIn() {
     LoginUser auth = new LoginUser(this.localDb, this.cloudDb, "invalid_email@gmail.com", this.commonPlaintextPassword);
 
     BackendError resp = auth.login();
     assertEquals(BackendError.ErrorTypes.UserDoesNotExist, resp.getErrorType());
+  }
+
+  @Test
+  void emptyUsernameOrEmailFailsToLogIn() {
+    LoginUser auth = new LoginUser(this.localDb, this.cloudDb, "", this.commonPlaintextPassword);
+
+    BackendError resp = auth.login();
+    assertEquals(BackendError.ErrorTypes.InvalidLoginCredentials, resp.getErrorType());
   }
 
   @Test
