@@ -23,7 +23,7 @@ public class VaultManager implements AutoCloseable {
 
   @Override
   public void close() {
-    closeDB();
+    this.closeDB();
   }
 
   public VaultStatus createVault() {
@@ -329,6 +329,7 @@ public class VaultManager implements AutoCloseable {
   public VaultStatus closeDB() {
     try {
       this.connection.close();
+
       return VaultStatus.DBCloseSuccess;
     } catch (SQLException e) {
       System.out.println("[VaultManager.closeDB] ERROR: ");
