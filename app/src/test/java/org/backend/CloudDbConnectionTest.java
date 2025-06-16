@@ -1,11 +1,20 @@
 package org.backend;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Random;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CloudDbConnectionTest {
+  @BeforeAll
+  void setup() {
+    SetupDB.init();
+  }
+
   int getRandomNum() {
     // generate a random number from 1 to 90,000
     final int MIN = 1;
