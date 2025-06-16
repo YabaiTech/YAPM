@@ -3,6 +3,7 @@ package org.vault;
 public enum VaultStatus {
   DBConnectionSuccess,
   DBConnectionFailure,
+  DBParameterVaultConnectionFailure,
 
   DBCreateVaultSuccess,
   DBCreateVaultFailure,
@@ -25,6 +26,10 @@ public enum VaultStatus {
 
   DBBadVerificationFormat,
   DBWrongMasterPasswd,
+
+  DBMergeSuccess,
+  DBMergeFailureException,
+  DBMergeDifferentMasterPasswd,
 
   DBCloseSuccess,
   DBCloseFailure
