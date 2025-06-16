@@ -57,7 +57,7 @@ public class LoginUser {
           "[LoginUser.login] Failed to login. No user registered using that username/email.");
     }
 
-    BackendError response, resp;
+    BackendError resp;
 
     // registered in the cloud, but not on local -> Sync with cloud DB
     if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
@@ -77,11 +77,11 @@ public class LoginUser {
 
     // registered in both
     if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
-      // different entry on local and cloud DB -> delete local user
       boolean conflictingUsername = !fetchedUser.username.equals(cloudFetchedUser.username);
       boolean conflictingEmail = !fetchedUser.email.equals(cloudFetchedUser.email);
       boolean conflictingHashedPassword = !fetchedUser.hashedPassword.equals(cloudFetchedUser.hashedPassword);
 
+      // the entries in the two DBs conflict with each other -> Delete the local entry
       if (conflictingUsername || conflictingEmail || conflictingHashedPassword) {
         resp = resoveDbConflict();
         if (resp != null) {
