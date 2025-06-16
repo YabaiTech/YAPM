@@ -110,6 +110,7 @@ public class LoginPanel extends JPanel {
                         """
                         Username/Email Rules:
                         - Cannot be empty
+                        - Only letters, digits
                         
                         Password Rules:
                         - Minimum 8 characters
