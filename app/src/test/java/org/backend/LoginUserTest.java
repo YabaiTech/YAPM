@@ -62,9 +62,7 @@ class LoginUserTest {
 
   @Test
   void validCredentialLogsInUsingEmail() {
-    System.out.println("uname: " + this.uname + " | pwd: " + this.plaintextPwd);
-
-    LoginUser auth = new LoginUser(this.localDb, this.cloudDb, this.uname, this.plaintextPwd);
+    LoginUser auth = new LoginUser(this.localDb, this.cloudDb, this.email, this.plaintextPwd);
 
     assertDoesNotThrow(() -> {
       BackendError resp = auth.login();
@@ -72,17 +70,16 @@ class LoginUserTest {
     });
   }
 
-  // @AfterAll
-  // void remove() {
-  // DBOperations localOps = new DBOperations(this.localDb);
-  // DBOperations cloudOps = new DBOperations(this.cloudDb);
-  //
-  // try {
-  // localOps.deleteUser(this.uname);
-  // cloudOps.deleteUser(this.uname);
-  // } catch (Exception e) {
-  // System.err.println("[LoginUserTest.remove] (Non-fatal) Failed to remove test
-  // user from DBs: " + e);
-  // }
-  // }
+  @AfterAll
+  void remove() {
+    DBOperations localOps = new DBOperations(this.localDb);
+    DBOperations cloudOps = new DBOperations(this.cloudDb);
+
+    try {
+      localOps.deleteUser(this.uname);
+      cloudOps.deleteUser(this.uname);
+    } catch (Exception e) {
+      System.err.println("[LoginUserTest.remove] (Non-fatal) Failed to remove test user from DBs: " + e);
+    }
+  }
 }

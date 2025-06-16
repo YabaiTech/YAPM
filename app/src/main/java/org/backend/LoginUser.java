@@ -101,9 +101,9 @@ public class LoginUser {
     if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
       System.out.println("I'm inside both");
       // different entry on local and cloud DB -> delete local user
-      boolean conflictingUsername = fetchedUser.username != cloudFetchedUser.username;
-      boolean conflictingEmail = fetchedUser.email != cloudFetchedUser.email;
-      boolean conflictingHashedPassword = fetchedUser.hashedPassword != cloudFetchedUser.hashedPassword;
+      boolean conflictingUsername = !fetchedUser.username.equals(cloudFetchedUser.username);
+      boolean conflictingEmail = !fetchedUser.email.equals(cloudFetchedUser.email);
+      boolean conflictingHashedPassword = !fetchedUser.hashedPassword.equals(cloudFetchedUser.hashedPassword);
 
       try {
         if (conflictingUsername || conflictingEmail || conflictingHashedPassword) {
