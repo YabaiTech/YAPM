@@ -205,7 +205,8 @@ public class LoginPanel extends JPanel {
 
             // Proceed with backend login...
             DBConnection dbConnection = new DBConnection();
-            LoginUser loginUser = new LoginUser(dbConnection, accountIdentifier, password);
+            CloudDbConnection cloudDbConnection = new CloudDbConnection();
+            LoginUser loginUser = new LoginUser(dbConnection, cloudDbConnection, accountIdentifier, password);
 
             BackendError loginErr = loginUser.login();
             if (loginErr != null) {

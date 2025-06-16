@@ -14,16 +14,19 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class LoginUser {
-  private final DBOperations dbOps;
+  private final DBOperations localDbOps;
+  private final DBOperations cloudDbOps;
   private String username;
   private String email;
   private final String plaintextPassword;
   private String hashedPassword;
   private String dbPath;
   private UserInfo fetchedUser;
+  private UserInfo cloudFetchedUser;
 
-  public LoginUser(DBConnection db, String accountIdentifier, String pwd) {
-    this.dbOps = new DBOperations(db);
+  public LoginUser(DatabaseConnection localDb, DatabaseConnection cloudDb, String accountIdentifier, String pwd) {
+    this.localDbOps = new DBOperations(localDb);
+    this.cloudDbOps = new DBOperations(cloudDb);
 
     if (isValidUsername(accountIdentifier)) {
       this.username = accountIdentifier;
@@ -37,13 +40,64 @@ public class LoginUser {
   public BackendError login() {
     try {
       if (this.username != null) {
-        this.fetchedUser = this.dbOps.getUserInfo(this.username);
+        if (this.username.isEmpty()) {
+          return new BackendError(BackendError.ErrorTypes.InvalidLoginCredentials,
+              "[Login.login] Provided username/email can't be empty");
+        }
+
+        this.fetchedUser = this.localDbOps.getUserInfo(this.username);
+        this.cloudFetchedUser = this.cloudDbOps.getUserInfo(this.username);
       } else {
-        this.fetchedUser = this.dbOps.getUserInfoByEmail(this.email);
+        if (this.email.isEmpty()) {
+          return new BackendError(BackendError.ErrorTypes.InvalidLoginCredentials,
+              "[Login.login] Provided username/email can't be empty");
+        }
+
+        this.fetchedUser = this.localDbOps.getUserInfoByEmail(this.email);
+        this.cloudFetchedUser = this.cloudDbOps.getUserInfoByEmail(this.email);
       }
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
           "[LoginUser.login] Failed to get master user info from database. Given exception: " + e);
+    }
+
+    // registered in no DB
+    if ((this.cloudFetchedUser.lastLoggedInTime == -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
+      return new BackendError(BackendError.ErrorTypes.UserDoesNotExist,
+          "[LoginUser.login] Failed to login. No user registered using that username/email.");
+    }
+
+    BackendError resp;
+
+    // registered in the cloud, but not on local -> Sync with cloud DB
+    if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
+      resp = syncWithCloudDb();
+      if (resp != null) {
+        return resp;
+      }
+    }
+
+    // registered in the local, but not on cloud -> Sync with local DB
+    if ((this.cloudFetchedUser.lastLoggedInTime == -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
+      resp = syncWithLocalDb();
+      if (resp != null) {
+        return resp;
+      }
+    }
+
+    // registered in both
+    if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
+      boolean conflictingUsername = !fetchedUser.username.equals(cloudFetchedUser.username);
+      boolean conflictingEmail = !fetchedUser.email.equals(cloudFetchedUser.email);
+      boolean conflictingHashedPassword = !fetchedUser.hashedPassword.equals(cloudFetchedUser.hashedPassword);
+
+      // the entries in the two DBs conflict with each other -> Delete the local entry
+      if (conflictingUsername || conflictingEmail || conflictingHashedPassword) {
+        resp = resoveDbConflict();
+        if (resp != null) {
+          return resp;
+        }
+      }
     }
 
     generatePasswordHash();
@@ -56,10 +110,70 @@ public class LoginUser {
 
     // successful login
     try {
-      this.dbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
+      this.localDbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
+      this.cloudDbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
     } catch (Exception e) {
       // it's ok even if it fails to update. Just let it know in the logs
       System.err.println("[LoginUser.login] Failed to update the last login time: " + e);
+    }
+
+    return null;
+  }
+
+  private BackendError syncWithCloudDb() {
+    try {
+      BackendError response = this.localDbOps.addUser(cloudFetchedUser.username, cloudFetchedUser.email,
+          cloudFetchedUser.hashedPassword,
+          cloudFetchedUser.salt, cloudFetchedUser.passwordDbPath, cloudFetchedUser.lastLoggedInTime);
+
+      if (response != null) {
+        return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
+            "[LoginUser.login] Failed to add the cloud user entry to the local database: " + response.getErrorType()
+                + " -> " + response.getContext());
+      }
+
+      this.fetchedUser = this.cloudFetchedUser;
+    } catch (Exception e) {
+      return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
+          "[LoginUser.login] Failed to add the cloud user entry to the local database: " + e);
+    }
+
+    return null;
+  }
+
+  private BackendError syncWithLocalDb() {
+    try {
+      BackendError response = this.cloudDbOps.addUser(fetchedUser.username, fetchedUser.email,
+          fetchedUser.hashedPassword,
+          fetchedUser.salt, fetchedUser.passwordDbPath, fetchedUser.lastLoggedInTime);
+
+      if (response != null) {
+        return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
+            "[LoginUser.login] Failed to add the local user entry to the cloud database: " + response.getErrorType()
+                + " -> " + response.getContext());
+      }
+
+      this.cloudFetchedUser = this.fetchedUser;
+    } catch (Exception e) {
+      return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
+          "[LoginUser.login] Failed to add the local user entry to the cloud database: " + e);
+    }
+
+    return null;
+  }
+
+  private BackendError resoveDbConflict() {
+    try {
+      BackendError response = this.localDbOps.deleteUser(this.fetchedUser.username);
+
+      if (response != null) {
+        return new BackendError(BackendError.ErrorTypes.FailedToRemoveLocalConflict,
+            "[LoginUser.login] Failed to remove the local conflicting entry: " + response.getErrorType()
+                + " -> " + response.getContext());
+      }
+    } catch (Exception e) {
+      return new BackendError(BackendError.ErrorTypes.FailedToRemoveLocalConflict,
+          "[LoginUser.login] Failed to remove the local conflicting entry: " + e);
     }
 
     return null;

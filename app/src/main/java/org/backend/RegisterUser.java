@@ -16,7 +16,8 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class RegisterUser {
-  private final DBOperations dbOps;
+  private final DBOperations localDbOps;
+  private final DBOperations cloudDbOps;
   private String username;
   private String email;
   private String plaintextPassword;
@@ -24,8 +25,9 @@ public class RegisterUser {
   private String hashSaltBase64;
   private String localDbFilePath;
 
-  public RegisterUser(DBConnection db) {
-    this.dbOps = new DBOperations(db);
+  public RegisterUser(DatabaseConnection loaclDb, DatabaseConnection cloudDb) {
+    this.localDbOps = new DBOperations(loaclDb);
+    this.cloudDbOps = new DBOperations(cloudDb);
   }
 
   public BackendError setUsername(String uname) {
@@ -42,6 +44,10 @@ public class RegisterUser {
    * A valid username can only include alphanumeric characters.
    */
   private boolean isValidUsername(String uname) {
+    if (uname.isEmpty()) {
+      return false;
+    }
+
     for (int i = 0; i < uname.length(); i++) {
       char c = uname.charAt(i);
 
@@ -67,6 +73,10 @@ public class RegisterUser {
   }
 
   private boolean isValidEmail(String email) {
+    if (email.isEmpty()) {
+      return false;
+    }
+
     String[] emailsParts = email.split("@");
     if (emailsParts.length != 2 || emailsParts[0].isEmpty() ||
         emailsParts[1].isEmpty()) {
@@ -74,7 +84,11 @@ public class RegisterUser {
     }
 
     String[] urlParts = emailsParts[1].split("\\.");
-    return urlParts.length >= 2;
+    if (urlParts.length < 2 || urlParts[0].isEmpty() || urlParts[1].isEmpty()) {
+      return false;
+    }
+
+    return true;
   }
 
   public BackendError setPassword(String pwd) {
@@ -241,9 +255,10 @@ public class RegisterUser {
 
   private boolean isUsernameTaken(String username) {
     try {
-      UserInfo fetchedUser = dbOps.getUserInfo(username);
+      UserInfo cloudFetchedUser = this.cloudDbOps.getUserInfo(username);
+
       // check the sentinel value to decide whether the user exists
-      return fetchedUser.lastLoggedInTime != -1;
+      return cloudFetchedUser.lastLoggedInTime != -1;
     } catch (Exception e) {
       return false;
     }
@@ -251,9 +266,10 @@ public class RegisterUser {
 
   private boolean isEmailAlreadyUsed(String email) {
     try {
-      UserInfo fetchedUser = dbOps.getUserInfoByEmail(email);
+      UserInfo cloudFetchedUser = this.cloudDbOps.getUserInfoByEmail(email);
+
       // check the sentinel value to decide whether the user exists
-      return fetchedUser.lastLoggedInTime != -1;
+      return cloudFetchedUser.lastLoggedInTime != -1;
     } catch (Exception e) {
       System.err.println("[RegisterUser.isEmailAlreadyUsed] Failed to check if the email is already used: " + e);
       return false;
@@ -316,10 +332,18 @@ public class RegisterUser {
     }
 
     try {
-      BackendError resp = this.dbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
+      BackendError resp = this.localDbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
           this.localDbFilePath,
           System.currentTimeMillis());
       if (resp != null) {
+        return resp;
+      }
+
+      resp = this.cloudDbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
+          this.localDbFilePath,
+          System.currentTimeMillis());
+      if (resp != null) {
+        this.localDbOps.deleteUser(this.username);
         return resp;
       }
     } catch (Exception e) {
