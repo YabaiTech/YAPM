@@ -51,73 +51,42 @@ public class LoginUser {
           "[LoginUser.login] Failed to get master user info from database. Given exception: " + e);
     }
 
-    BackendError response;
-
     // registered in no DB
     if ((this.cloudFetchedUser.lastLoggedInTime == -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
-      System.out.println("I'm inside none");
       return new BackendError(BackendError.ErrorTypes.UserDoesNotExist,
           "[LoginUser.login] Failed to login. No user registered using that username/email.");
     }
 
-    // registered in the cloud, but not on local
-    if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
-      System.out.println("I'm only inside cloud");
-      try {
-        response = this.localDbOps.addUser(cloudFetchedUser.username, cloudFetchedUser.email,
-            cloudFetchedUser.hashedPassword,
-            cloudFetchedUser.salt, cloudFetchedUser.passwordDbPath, cloudFetchedUser.lastLoggedInTime);
+    BackendError response, resp;
 
-        if (response != null) {
-          return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
-              "[LoginUser.login] Failed to add the cloud user entry to the local database: " + response.getErrorType()
-                  + " -> " + response.getContext());
-        }
-      } catch (Exception e) {
-        return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
-            "[LoginUser.login] Failed to add the cloud user entry to the local database: " + e);
+    // registered in the cloud, but not on local -> Sync with cloud DB
+    if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
+      resp = syncWithCloudDb();
+      if (resp != null) {
+        return resp;
       }
     }
 
-    // registered in the local, but not on cloud
+    // registered in the local, but not on cloud -> Sync with local DB
     if ((this.cloudFetchedUser.lastLoggedInTime == -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
-      System.out.println("I'm only inside local");
-      try {
-        response = this.cloudDbOps.addUser(fetchedUser.username, fetchedUser.email, fetchedUser.hashedPassword,
-            fetchedUser.salt, fetchedUser.passwordDbPath, fetchedUser.lastLoggedInTime);
-
-        if (response != null) {
-          return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
-              "[LoginUser.login] Failed to add the local user entry to the cloud database: " + response.getErrorType()
-                  + " -> " + response.getContext());
-        }
-      } catch (Exception e) {
-        return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
-            "[LoginUser.login] Failed to add the local user entry to the cloud database: " + e);
+      resp = syncWithLocalDb();
+      if (resp != null) {
+        return resp;
       }
     }
 
     // registered in both
     if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime != -1)) {
-      System.out.println("I'm inside both");
       // different entry on local and cloud DB -> delete local user
       boolean conflictingUsername = !fetchedUser.username.equals(cloudFetchedUser.username);
       boolean conflictingEmail = !fetchedUser.email.equals(cloudFetchedUser.email);
       boolean conflictingHashedPassword = !fetchedUser.hashedPassword.equals(cloudFetchedUser.hashedPassword);
 
-      try {
-        if (conflictingUsername || conflictingEmail || conflictingHashedPassword) {
-          response = this.localDbOps.deleteUser(this.fetchedUser.username);
-
-          if (response != null) {
-            return new BackendError(BackendError.ErrorTypes.FailedToRemoveLocalConflict,
-                "[LoginUser.login] Failed to remove the local conflicting entry: " + response.getErrorType()
-                    + " -> " + response.getContext());
-          }
+      if (conflictingUsername || conflictingEmail || conflictingHashedPassword) {
+        resp = resoveDbConflict();
+        if (resp != null) {
+          return resp;
         }
-      } catch (Exception e) {
-        return new BackendError(BackendError.ErrorTypes.FailedToRemoveLocalConflict,
-            "[LoginUser.login] Failed to remove the local conflicting entry: " + e);
       }
     }
 
@@ -136,6 +105,65 @@ public class LoginUser {
     } catch (Exception e) {
       // it's ok even if it fails to update. Just let it know in the logs
       System.err.println("[LoginUser.login] Failed to update the last login time: " + e);
+    }
+
+    return null;
+  }
+
+  private BackendError syncWithCloudDb() {
+    try {
+      BackendError response = this.localDbOps.addUser(cloudFetchedUser.username, cloudFetchedUser.email,
+          cloudFetchedUser.hashedPassword,
+          cloudFetchedUser.salt, cloudFetchedUser.passwordDbPath, cloudFetchedUser.lastLoggedInTime);
+
+      if (response != null) {
+        return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
+            "[LoginUser.login] Failed to add the cloud user entry to the local database: " + response.getErrorType()
+                + " -> " + response.getContext());
+      }
+
+      this.fetchedUser = this.cloudFetchedUser;
+    } catch (Exception e) {
+      return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
+          "[LoginUser.login] Failed to add the cloud user entry to the local database: " + e);
+    }
+
+    return null;
+  }
+
+  private BackendError syncWithLocalDb() {
+    try {
+      BackendError response = this.cloudDbOps.addUser(fetchedUser.username, fetchedUser.email,
+          fetchedUser.hashedPassword,
+          fetchedUser.salt, fetchedUser.passwordDbPath, fetchedUser.lastLoggedInTime);
+
+      if (response != null) {
+        return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
+            "[LoginUser.login] Failed to add the local user entry to the cloud database: " + response.getErrorType()
+                + " -> " + response.getContext());
+      }
+
+      this.cloudFetchedUser = this.fetchedUser;
+    } catch (Exception e) {
+      return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
+          "[LoginUser.login] Failed to add the local user entry to the cloud database: " + e);
+    }
+
+    return null;
+  }
+
+  private BackendError resoveDbConflict() {
+    try {
+      BackendError response = this.localDbOps.deleteUser(this.fetchedUser.username);
+
+      if (response != null) {
+        return new BackendError(BackendError.ErrorTypes.FailedToRemoveLocalConflict,
+            "[LoginUser.login] Failed to remove the local conflicting entry: " + response.getErrorType()
+                + " -> " + response.getContext());
+      }
+    } catch (Exception e) {
+      return new BackendError(BackendError.ErrorTypes.FailedToRemoveLocalConflict,
+          "[LoginUser.login] Failed to remove the local conflicting entry: " + e);
     }
 
     return null;
