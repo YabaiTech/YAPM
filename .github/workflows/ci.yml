@@ -2,21 +2,40 @@
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        # Test across three OS environments
         include:
           - os: ubuntu-latest
             gradleCmd: "./gradlew"
-          - os: windows-latest
-            gradleCmd: ".\\gradlew.bat"
+            useMysqlService: true
           - os: macos-latest
             gradleCmd: "./gradlew"
+            useMysqlService: false
+          - os: windows-latest
+            gradleCmd: ".\\gradlew.bat"
+            useMysqlService: false
     runs-on: ${{ matrix.os }}
+
+    # only define services when on Linux and when useMysqlService is true
+    services:
+      mysql:
+        if: matrix.useMysqlService == true
+        image: mysql:8
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_DATABASE: "YAPM_TEST2"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Checkout repository
@@ -27,11 +46,29 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-          cache: gradle  # caches gradle dependencies
+          cache: gradle
 
       - name: Ensure Gradle wrapper is executable (Unix)
         if: runner.os != 'Windows'
         run: chmod +x ./gradlew
+
+      # on Linux with MySQL service, install mysql client so we can wait for readiness
+      - name: Install MySQL client (Ubuntu only)
+        if: runner.os == 'Linux' && matrix.useMysqlService == true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y default-mysql-client
+
+      # wait for MySQL to be ready before running tests
+      - name: Wait for MySQL service
+        if: runner.os == 'Linux' && matrix.useMysqlService == true
+        run: |
+          echo "Waiting for MySQL to be ready..."
+          for i in {30..0}; do
+            mysql -h127.0.0.1 -uroot -e "SELECT 1" >/dev/null 2>&1 && break
+            echo "  still waiting..."
+            sleep 1
+          done
 
       - name: Build and run tests
         run: ${{ matrix.gradleCmd }} build --no-daemon
