@@ -13,7 +13,7 @@ jobs:
           - os: ubuntu-latest
             gradleCmd: "./gradlew"
           - os: windows-latest
-            gradleCmd: "gradlew.bat"
+            gradleCmd: ".\\gradlew.bat"
           - os: macos-latest
             gradleCmd: "./gradlew"
     runs-on: ${{ matrix.os }}
