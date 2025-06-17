@@ -101,9 +101,14 @@ public class VaultManager implements AutoCloseable {
         String passwdField = resultSet.getString("password");
         String ivField = resultSet.getString("iv");
 
+        EncryptedData url = new EncryptedData(urlField, ivField, saltB64);
+        EncryptedData username = new EncryptedData(usernameField, ivField, saltB64);
         EncryptedData passwd = new EncryptedData(passwdField, ivField, saltB64);
-        String plainPasswd;
+
+        String plainUrl, plainUsername, plainPasswd;
         try {
+          plainUrl = CryptoUtils.decrypt(url, masterPasswd);
+          plainUsername = CryptoUtils.decrypt(username, masterPasswd);
           plainPasswd = CryptoUtils.decrypt(passwd, masterPasswd);
         } catch (Exception e) {
           System.out.println("[VaultManager.openVault] ERROR: ");
@@ -111,7 +116,7 @@ public class VaultManager implements AutoCloseable {
           return VaultStatus.DBOpenVaultFailure;
         }
 
-        entries.add(new Entry(id, urlField, usernameField, plainPasswd));
+        entries.add(new Entry(id, plainUrl, plainUsername, plainPasswd));
       }
 
       this.connection.commit();
@@ -123,8 +128,8 @@ public class VaultManager implements AutoCloseable {
     }
   }
 
-  public VaultStatus addEntry(String urlField, String usernameField, String plainPasswdField) {
-    if (urlField.isEmpty() || usernameField.isEmpty() || plainPasswdField.isEmpty()) {
+  public VaultStatus addEntry(String urlField, String usernameField, String passwdField) {
+    if (urlField.isEmpty() || usernameField.isEmpty() || passwdField.isEmpty()) {
       return VaultStatus.DBAddEntryFailureEmptyParameter;
     }
 
@@ -148,22 +153,28 @@ public class VaultManager implements AutoCloseable {
       return VaultStatus.DBAddEntryFailureException;
     }
 
-    EncryptedData encrypted;
+    EncryptedData encryptedUrl, encryptedUsername, encryptedPasswd;
     try {
-      encrypted = CryptoUtils.encrypt(plainPasswdField, this.masterPasswd, salt);
+      encryptedUrl = CryptoUtils.encrypt(urlField, this.masterPasswd, salt);
+
+      final byte[] iv = Base64.getDecoder().decode(encryptedUrl.getIV());
+      encryptedUsername = CryptoUtils.encrypt(usernameField, this.masterPasswd, salt, iv);
+      encryptedPasswd = CryptoUtils.encrypt(passwdField, this.masterPasswd, salt, iv);
     } catch (Exception e) {
       System.out.println("[VaultManager.addEntry] ERROR: ");
       e.printStackTrace();
       return VaultStatus.DBAddEntryFailureException;
     }
-    String cipherB64 = encrypted.getCipherText();
-    String ivB64 = encrypted.getIV();
+    String cipherUrl = encryptedUrl.getCipherText();
+    String cipherUsername = encryptedUsername.getCipherText();
+    String cipherPasswd = encryptedPasswd.getCipherText();
+    String ivB64 = encryptedUrl.getIV();
 
     try (PreparedStatement preparedStatement = this.connection
         .prepareStatement("INSERT INTO entries(url, username, password, iv, timestamp) VALUES(?,?,?,?,?)")) {
-      preparedStatement.setString(1, urlField);
-      preparedStatement.setString(2, usernameField);
-      preparedStatement.setString(3, cipherB64);
+      preparedStatement.setString(1, cipherUrl);
+      preparedStatement.setString(2, cipherUsername);
+      preparedStatement.setString(3, cipherPasswd);
       preparedStatement.setString(4, ivB64);
       preparedStatement.setLong(5, System.currentTimeMillis());
 
@@ -214,8 +225,8 @@ public class VaultManager implements AutoCloseable {
     }
   }
 
-  public VaultStatus editEntry(int entryID, String newUrl, String newUsername, String newPlainPasswd) {
-    if (newUrl.isEmpty() || newUsername.isEmpty() || newPlainPasswd.isEmpty()) {
+  public VaultStatus editEntry(int entryID, String newUrl, String newUsername, String newPasswd) {
+    if (newUrl.isEmpty() || newUsername.isEmpty() || newPasswd.isEmpty()) {
       return VaultStatus.DBEditEntryFailureEmptyParameter;
     }
 
@@ -239,25 +250,31 @@ public class VaultManager implements AutoCloseable {
       return VaultStatus.DBEditEntryFailureException;
     }
 
-    EncryptedData encrypted;
+    EncryptedData encryptedUrl, encryptedUsername, encryptedPasswd;
     try {
-      encrypted = CryptoUtils.encrypt(newPlainPasswd, this.masterPasswd, salt);
+      encryptedUrl = CryptoUtils.encrypt(newUrl, this.masterPasswd, salt);
+
+      final byte[] iv = Base64.getDecoder().decode(encryptedUrl.getIV());
+      encryptedUsername = CryptoUtils.encrypt(newUsername, this.masterPasswd, salt, iv);
+      encryptedPasswd = CryptoUtils.encrypt(newPasswd, this.masterPasswd, salt, iv);
     } catch (Exception e) {
       System.out.println("[VaultManager.editEntry] ERROR: ");
       e.printStackTrace();
       return VaultStatus.DBEditEntryFailureException;
     }
-    String cipherB64 = encrypted.getCipherText();
-    String ivB64 = encrypted.getIV();
+    String cipherUrl = encryptedUrl.getCipherText();
+    String cipherUsername = encryptedUsername.getCipherText();
+    String cipherPasswd = encryptedPasswd.getCipherText();
+    String ivB64 = encryptedUrl.getIV();
 
     try (PreparedStatement ps = connection.prepareStatement(
         "UPDATE entries " +
             "SET url = ?, username = ?, password = ?, iv = ?, timestamp = ? " +
             "WHERE id = ?")) {
 
-      ps.setString(1, newUrl);
-      ps.setString(2, newUsername);
-      ps.setString(3, cipherB64);
+      ps.setString(1, cipherUrl);
+      ps.setString(2, cipherUsername);
+      ps.setString(3, cipherPasswd);
       ps.setString(4, ivB64);
       ps.setLong(5, System.currentTimeMillis());
       ps.setInt(6, entryID);
@@ -370,51 +387,61 @@ public class VaultManager implements AutoCloseable {
           int otherId = rsOther.getInt("id");
           String otherUrl = rsOther.getString("url");
           String otherUsername = rsOther.getString("username");
-          String otherCipherB64 = rsOther.getString("password");
+          String otherPasswd = rsOther.getString("password");
           String otherIvB64 = rsOther.getString("iv");
           long otherTimestamp = rsOther.getLong("timestamp");
+          String otherSaltB64 = Base64.getEncoder().encodeToString(otherSalt);
 
-          EncryptedData otherData = new EncryptedData(otherCipherB64, otherIvB64,
-              Base64.getEncoder().encodeToString(otherSalt));
-          String plainPasswd;
+          EncryptedData otherUrlData = new EncryptedData(otherUrl, otherIvB64, otherSaltB64);
+          EncryptedData otherUsernameData = new EncryptedData(otherUsername, otherIvB64, otherSaltB64);
+          EncryptedData otherPasswdData = new EncryptedData(otherPasswd, otherIvB64, otherSaltB64);
+          String plainUrl, plainUsername, plainPasswd;
 
           try {
-            plainPasswd = CryptoUtils.decrypt(otherData, other.masterPasswd);
+            plainUrl = CryptoUtils.decrypt(otherUrlData, other.masterPasswd);
+            plainUsername = CryptoUtils.decrypt(otherUsernameData, other.masterPasswd);
+            plainPasswd = CryptoUtils.decrypt(otherPasswdData, other.masterPasswd);
           } catch (Exception e) {
             System.out.println("[VaultManager.merge] ERROR: ");
             e.printStackTrace();
             return VaultStatus.DBMergeFailureException;
           }
 
-          EncryptedData newData;
+          EncryptedData newUrlData, newUsernameData, newPasswdData;
+          byte[] newIvBytes;
           try {
-            newData = CryptoUtils.encrypt(plainPasswd, this.masterPasswd, salt);
+            newUrlData = CryptoUtils.encrypt(plainUrl, this.masterPasswd, salt);
+
+            newIvBytes = Base64.getDecoder().decode(newUrlData.getIV());
+            newUsernameData = CryptoUtils.encrypt(plainUsername, this.masterPasswd, salt, newIvBytes);
+            newPasswdData = CryptoUtils.encrypt(plainPasswd, this.masterPasswd, salt, newIvBytes);
           } catch (Exception e) {
             System.out.println("[VaultManager.merge] ERROR: ");
             e.printStackTrace();
             return VaultStatus.DBMergeFailureException;
           }
-          String cipherA = newData.getCipherText();
-          String ivA = newData.getIV();
+          String newUrlCipherB64 = newUrlData.getCipherText();
+          String newUsernameCipherB64 = newUsernameData.getCipherText();
+          String newPasswdCipherB64 = newPasswdData.getCipherText();
 
           psLookup.setInt(1, otherId);
           try (ResultSet rsSelf = psLookup.executeQuery()) {
             if (rsSelf.next()) {
               long selfTimestamp = rsSelf.getLong("timestamp");
               if (otherTimestamp > selfTimestamp) {
-                psUpdate.setString(1, otherUrl);
-                psUpdate.setString(2, otherUsername);
-                psUpdate.setString(3, cipherA);
-                psUpdate.setString(4, ivA);
+                psUpdate.setString(1, newUrlCipherB64);
+                psUpdate.setString(2, newUsernameCipherB64);
+                psUpdate.setString(3, newPasswdCipherB64);
+                psUpdate.setString(4, Base64.getEncoder().encodeToString(newIvBytes));
                 psUpdate.setLong(5, otherTimestamp);
                 psUpdate.setInt(6, otherId);
                 psUpdate.executeUpdate();
               }
             } else {
-              psInsert.setString(1, otherUrl);
-              psInsert.setString(2, otherUsername);
-              psInsert.setString(3, cipherA);
-              psInsert.setString(4, ivA);
+              psInsert.setString(1, newUrlCipherB64);
+              psInsert.setString(2, newUsernameCipherB64);
+              psInsert.setString(3, newPasswdCipherB64);
+              psInsert.setString(4, Base64.getEncoder().encodeToString(newIvBytes));
               psInsert.setLong(5, otherTimestamp);
               psInsert.executeUpdate();
             }
