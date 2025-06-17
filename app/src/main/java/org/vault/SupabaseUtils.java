@@ -8,6 +8,7 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse.BodyHandlers;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class SupabaseUtils {
@@ -28,6 +29,7 @@ public class SupabaseUtils {
       HttpRequest req = HttpRequest.newBuilder(URI.create(uploadUrl))
           .header("apikey", SUPABASE_API_KEY)
           .header("Authorization", "Bearer " + SUPABASE_API_KEY)
+          .header("x-upsert", "true")
           .POST(BodyPublishers.ofFile(localFile))
           .build();
 
@@ -50,6 +52,14 @@ public class SupabaseUtils {
 
   public static boolean downloadVault(String remotePath, Path localDest) {
     try {
+      Path parent = localDest.getParent();
+      if (parent != null) {
+        Files.createDirectories(parent);
+      }
+      if (Files.exists(localDest)) {
+        Files.delete(localDest);
+      }
+
       String downloadUrl = String.format(
           "%sstorage/v1/object/public/%s/%s",
           SUPABASE_URL,
@@ -69,7 +79,7 @@ public class SupabaseUtils {
         System.out.println("[Supabase.downloadVault] Success: wrote to " + localDest);
         return true;
       } else {
-        System.err.println("[Supabase.downloadVault] Failed [" + code + "]");
+        System.err.println("[Supabase.downloadVault] Failed [" + code + "]" + res.body());
         return false;
       }
     } catch (Exception e) {
