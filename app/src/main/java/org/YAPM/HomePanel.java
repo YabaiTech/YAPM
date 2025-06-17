@@ -9,10 +9,15 @@ import java.awt.*;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.*;
 import java.util.ArrayList;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import javax.swing.plaf.metal.MetalIconFactory;
+
 
 import org.backend.*;
 import org.vault.*;
 import org.YAPM.components.*;
+import org.misc.*;
 
 public class HomePanel extends JPanel {
 
@@ -108,13 +113,37 @@ public class HomePanel extends JPanel {
             JTextField usernameField = new JTextField();
             JTextField passwordField = new JTextField();
 
+            JLabel strengthLabel = new JLabel(" ");
+            strengthLabel.setBorder(new EmptyBorder(5, 0, 0, 0));
+            JProgressBar strengthBar = new JProgressBar(0, 100);
+            strengthBar.setBorder(new EmptyBorder(0, 0, 5, 0));
+            JLabel checkIcon = new JLabel(); // empty label
+            attachPasswordStrengthListeners(passwordField, strengthLabel, strengthBar, checkIcon);
+
+            //generating random password with button Generate
+
+            JButton generateButton = new JButton("Generate");
+            generateButton.addActionListener(ev -> {
+                PasswordGenerator pg = new PasswordGenerator(true, true, true, true);
+                passwordField.setText(pg.generate(16)); // 16-character password
+            });
+
             JPanel panel = new JPanel(new GridLayout(0, 1));
             panel.add(new JLabel("URL:"));
             panel.add(urlField);
             panel.add(new JLabel("Username:"));
             panel.add(usernameField);
             panel.add(new JLabel("Password:"));
-            panel.add(passwordField);
+
+            // adding new panel
+
+            JPanel passRow = new JPanel(new BorderLayout());
+            passRow.add(passwordField, BorderLayout.CENTER);
+            passRow.add(generateButton, BorderLayout.EAST);
+            panel.add(passRow);
+            panel.add(strengthLabel);
+            panel.add(strengthBar);
+
 
             int result = JOptionPane.showConfirmDialog(this, panel, "Add New Entry",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
@@ -153,13 +182,41 @@ public class HomePanel extends JPanel {
             JTextField usernameField = new JTextField(ent.getUsername());
             JTextField passwordField = new JTextField(ent.getPasswd());
 
+            JLabel strengthLabel = new JLabel(" ");
+            strengthLabel.setBorder(new EmptyBorder(5, 0, 0, 0));
+            JProgressBar strengthBar = new JProgressBar(0, 100);
+            strengthBar.setBorder(new EmptyBorder(0, 0, 5, 0));
+            JLabel checkIcon = new JLabel(); // empty label
+
+            attachPasswordStrengthListeners(passwordField, strengthLabel, strengthBar, checkIcon);
+
+
+            //button for generating random password
+            JButton generateButton = new JButton("Generate");
+            generateButton.addActionListener(ev -> {
+                PasswordGenerator pg = new PasswordGenerator(true, true, true, true);
+                passwordField.setText(pg.generate(16));
+            });
+
             JPanel panel = new JPanel(new GridLayout(0, 1));
             panel.add(new JLabel("URL:"));
             panel.add(urlField);
             panel.add(new JLabel("Username:"));
             panel.add(usernameField);
             panel.add(new JLabel("Password:"));
-            panel.add(passwordField);
+
+            //adding new panel
+            JPanel passRow = new JPanel(new BorderLayout());
+            passRow.add(passwordField, BorderLayout.CENTER);
+            passRow.add(generateButton, BorderLayout.EAST);
+            panel.add(passRow);
+            panel.add(strengthLabel);
+            panel.add(strengthBar);
+
+
+
+
+
 
             int result = JOptionPane.showConfirmDialog(this, panel, "Edit Entry",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
@@ -229,6 +286,8 @@ public class HomePanel extends JPanel {
         return rowData;
     }
 
+
+
     private void refreshEntryTable() {
         credentials.clear();
         VaultStatus status = vm.openVault(credentials);
@@ -249,4 +308,43 @@ public class HomePanel extends JPanel {
             table.getColumnModel().getColumn(i).setCellEditor(editor);
         }
     }
+
+    //adding live entropy calculator
+    // At top of HomePanel.java — inside the class
+    private void attachPasswordStrengthListeners(JTextField passwordField, JLabel strengthLabel, JProgressBar strengthBar, JLabel checkIcon) {
+        passwordField.getDocument().addDocumentListener(new DocumentListener() {
+            private void updateStrength() {
+                String pwd = passwordField.getText();
+                double entropy = PasswordEntropyCalculator.calculateEntropy(pwd);
+                PasswordStrength strength = PasswordEntropyCalculator.getPasswdStrength(pwd);
+
+                strengthLabel.setText("Strength: " + strength.name());
+                checkIcon.setIcon(null); // Always keep icon hidden
+
+                if (entropy < 28) {
+                    strengthBar.setValue(20);
+                    strengthBar.setForeground(Color.RED);
+                } else if (entropy < 36) {
+                    strengthBar.setValue(40);
+                    strengthBar.setForeground(Color.ORANGE);
+                } else if (entropy < 60) {
+                    strengthBar.setValue(60);
+                    strengthBar.setForeground(Color.YELLOW.darker());
+                } else if (entropy < 128) {
+                    strengthBar.setValue(80);
+                    strengthBar.setForeground(new Color(0, 180, 0));
+                } else {
+                    strengthBar.setValue(100);
+                    strengthBar.setForeground(new Color(0, 150, 255));
+                    // Do not show icon even on 100%
+                }
+            }
+
+            public void insertUpdate(DocumentEvent e) { updateStrength(); }
+            public void removeUpdate(DocumentEvent e) { updateStrength(); }
+            public void changedUpdate(DocumentEvent e) { updateStrength(); }
+        });
+    }
+
+
 }
