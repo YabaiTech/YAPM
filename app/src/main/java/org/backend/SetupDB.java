@@ -3,11 +3,21 @@ package org.backend;
 import java.sql.*;
 
 public class SetupDB implements AutoCloseable {
-  private static Connection con;
+  private static Connection localCon;
+  private static Connection cloudCon;
 
-  public static void init() {
+  private static ProdEnvVars prodEnv = new ProdEnvVars();
+
+  public static boolean init() {
     try {
-      con = DriverManager.getConnection(EnvVars.DATABASE_BASE_URL, EnvVars.DATABASE_USER, EnvVars.DATABASE_PASSWORD);
+      localCon = DriverManager.getConnection(EnvVars.DATABASE_BASE_URL, EnvVars.DATABASE_USER,
+          EnvVars.DATABASE_PASSWORD);
+
+      String dbBaseURL = prodEnv.get("DATABASE_BASE_URL");
+      String dbUser = prodEnv.get("DATABASE_USER");
+      String dbPwd = prodEnv.get("DATABASE_PASSWORD");
+
+      cloudCon = DriverManager.getConnection(dbBaseURL, dbUser, dbPwd);
 
       createDatabaseIfNotExisting();
       createTableIfNotExisting();
@@ -17,12 +27,16 @@ public class SetupDB implements AutoCloseable {
 
       System.exit(1);
     }
+
+    return true;
   }
 
   private static void createDatabaseIfNotExisting() {
-    try (Statement stmt = con.createStatement()) {
-      String dbCreationSQL = "CREATE DATABASE IF NOT EXISTS " + EnvVars.DATABASE_NAME;
-      stmt.execute(dbCreationSQL);
+    try (Statement stmtLocal = localCon.createStatement(); Statement stmtCloud = cloudCon.createStatement()) {
+      String localDbCreationSQL = "CREATE DATABASE IF NOT EXISTS " + EnvVars.DATABASE_NAME;
+      String cloudDbCreationSQL = "CREATE DATABASE IF NOT EXISTS " + prodEnv.get("DATABASE_NAME");
+      stmtLocal.execute(localDbCreationSQL);
+      stmtCloud.execute(cloudDbCreationSQL);
     } catch (Exception e) {
       System.err.println("[SetupDB.createMasterUserTable] Failed to create the YAPM database: ");
       e.printStackTrace();
@@ -32,8 +46,20 @@ public class SetupDB implements AutoCloseable {
   }
 
   private static void createTableIfNotExisting() {
-    try (Statement stmnt = con.createStatement()) {
-      stmnt.execute(EnvVars.TABLE_CREATION_SQL);
+    try {
+      localCon = DriverManager.getConnection(EnvVars.DATABASE_URL, EnvVars.DATABASE_USER, EnvVars.DATABASE_PASSWORD);
+
+      String dbBaseURL = prodEnv.get("DATABASE_BASE_URL");
+      String dbName = prodEnv.get("DATABASE_NAME");
+      String dbUser = prodEnv.get("DATABASE_USER");
+      String dbPwd = prodEnv.get("DATABASE_PASSWORD");
+      cloudCon = DriverManager.getConnection(dbBaseURL + dbName, dbUser, dbPwd);
+
+      Statement stmtLocal = localCon.createStatement();
+      Statement stmtCloud = cloudCon.createStatement();
+
+      stmtLocal.execute(EnvVars.getTableCreationSQL(EnvVars.MASTER_USER_TABLE));
+      stmtCloud.execute(EnvVars.getTableCreationSQL(prodEnv.get("MASTER_USER_TABLE")));
     } catch (Exception e) {
       System.err.println("[SetupDB.createMasterUserTable] Failed to create master user table: " + e);
 
@@ -44,7 +70,8 @@ public class SetupDB implements AutoCloseable {
   @Override
   public void close() {
     try {
-      con.close();
+      localCon.close();
+      cloudCon.close();
     } catch (Exception e) {
       // If it errors, just let it know using a log
       System.err.println("[DBConnection.close] Error occured while closing the databse connection: " + e.toString());
