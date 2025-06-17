@@ -1,0 +1,46 @@
+# .github/workflows/ci.yml
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test across three OS environments
+        include:
+          - os: ubuntu-latest
+            gradleCmd: "./gradlew"
+          - os: windows-latest
+            gradleCmd: "gradlew.bat"
+          - os: macos-latest
+            gradleCmd: "./gradlew"
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle  # caches gradle dependencies
+
+      - name: Ensure Gradle wrapper is executable (Unix)
+        if: runner.os != 'Windows'
+        run: chmod +x ./gradlew
+
+      - name: Build and run tests
+        run: ${{ matrix.gradleCmd }} build --no-daemon
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.os }}
+          path: |
+            **/build/test-results/test
+            **/app/build/test-results/test
