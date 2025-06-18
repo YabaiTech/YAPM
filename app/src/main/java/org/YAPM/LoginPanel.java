@@ -194,24 +194,6 @@ public class LoginPanel extends JPanel {
                 return;
             }
 
-            BackendError verifyErr = loginUser.verifyDbFilePath();
-            if (verifyErr != null) {
-                if (verifyErr.getErrorType() == BackendError.ErrorTypes.DbFileDoesNotExist) {
-                    BackendError newDbCreationResponse = loginUser.getNewDbFilePath();
-                    if (newDbCreationResponse != null) {
-                        showUserFriendlyError("Vault Error",
-                            "Failed to create new vault database file.<br><br>" +
-                                "Please contact support if the problem persists.");
-                        return;
-                    }
-                } else {
-                    showUserFriendlyError("Vault Error",
-                        "Failed to verify vault database file.<br><br>" +
-                            "Please contact support if the problem persists.");
-                    return;
-                }
-            }
-
             // Successful login
             JOptionPane.showMessageDialog(
                 LoginPanel.this,

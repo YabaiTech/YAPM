@@ -4,9 +4,7 @@ import org.vault.*;
 
 import java.io.File;
 import java.nio.file.FileSystemException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.Base64;
@@ -23,7 +21,7 @@ public class RegisterUser {
   private String plaintextPassword;
   private String hashedPassword;
   private String hashSaltBase64;
-  private String localDbFilePath;
+  private String dbFileName;
 
   public RegisterUser(DatabaseConnection loaclDb, DatabaseConnection cloudDb) {
     this.localDbOps = new DBOperations(loaclDb);
@@ -203,40 +201,17 @@ public class RegisterUser {
     return UUID.randomUUID().toString();
   }
 
-  private String getDbFilePath() throws FileSystemException {
-    // the db file will be stored in the `YAPM` directory inside the user's home
-    // directory in their OS
-    String os = System.getProperty("os.name");
-    String homeDir = System.getProperty("user.home");
-    String dbStoreDirectory;
-    String dbFileName;
-
-    if (os.equalsIgnoreCase("windows")) {
-      dbStoreDirectory = homeDir + "\\YAPM";
-    } else {
-      dbStoreDirectory = homeDir + "/YAPM";
-    }
-    Path dirPath = Paths.get(dbStoreDirectory);
-    if (!Files.exists(dirPath)) {
-      File newDir = new File(homeDir, "YAPM");
-      if (newDir.mkdir()) {
-        System.out.println("[RegisterUser] Created the YAPM directory");
-      } else {
-        System.err.println("[RegisterUser] Failed to create the YAPM directory");
-
-        throw new FileSystemException("[RegisterUser.getDbFilePath] Failed to create the YAPM directory");
-      }
+  private void setDbFilename() throws FileSystemException {
+    boolean isOk = FileHandler.createDbStoreDirIfNotExisting();
+    if (!isOk) {
+      throw new FileSystemException("[RegisterUser.getDbFilename] Failed to create the `YAPM` directory");
     }
 
-    // now the YAPM directory exists, just need to generate a suitable name for the
-    // db file
-    dbFileName = this.username + getRandomUUID() + ".db";
-
-    return new File(dbStoreDirectory, dbFileName).toString();
+    this.dbFileName = this.username + getRandomUUID() + ".db";
   }
 
-  private BackendError createLocalDb(String dbPath) {
-    try (VaultManager vm = new VaultManager(dbPath, this.plaintextPassword)) {
+  private BackendError createLocalDb(String dbName) {
+    try (VaultManager vm = new VaultManager(FileHandler.getFullPath(dbName), this.plaintextPassword)) {
       VaultStatus resp = vm.connectToDB();
       if (resp != VaultStatus.DBConnectionSuccess) {
         return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
@@ -321,8 +296,8 @@ public class RegisterUser {
     }
 
     try {
-      this.localDbFilePath = getDbFilePath();
-      response = createLocalDb(this.localDbFilePath);
+      setDbFilename();
+      response = createLocalDb(this.dbFileName);
       if (response != null) {
         return response;
       }
@@ -333,14 +308,14 @@ public class RegisterUser {
 
     try {
       BackendError resp = this.localDbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
-          this.localDbFilePath,
+          FileHandler.getFullPath(this.dbFileName),
           System.currentTimeMillis());
       if (resp != null) {
         return resp;
       }
 
       resp = this.cloudDbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
-          this.localDbFilePath,
+          FileHandler.getFullPath(this.dbFileName),
           System.currentTimeMillis());
       if (resp != null) {
         this.localDbOps.deleteUser(this.username);
@@ -349,6 +324,14 @@ public class RegisterUser {
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
           "[RegisterUser.register] Failed to add user to the database. Given exception: " + e);
+    }
+
+    SupabaseUtils supaUtils = new SupabaseUtils();
+    String localDbFilePath = FileHandler.getFullPath(this.dbFileName);
+    boolean isOk = supaUtils.uploadVault(Path.of(localDbFilePath), new File(localDbFilePath).getName());
+    if (!isOk) {
+      return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
+          "[LoginUser.login] Failed to upload DB file to the cloud");
     }
 
     return null;

@@ -3,9 +3,7 @@ package org.backend;
 import org.vault.*;
 
 import java.io.File;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.spec.KeySpec;
 import java.util.Base64;
 import java.util.UUID;
@@ -20,7 +18,6 @@ public class LoginUser {
   private String email;
   private final String plaintextPassword;
   private String hashedPassword;
-  private String dbPath;
   private UserInfo fetchedUser;
   private UserInfo cloudFetchedUser;
 
@@ -68,6 +65,7 @@ public class LoginUser {
     }
 
     BackendError resp;
+    SupabaseUtils supaUtils = new SupabaseUtils();
 
     // registered in the cloud, but not on local -> Sync with cloud DB
     if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
@@ -75,6 +73,14 @@ public class LoginUser {
       if (resp != null) {
         return resp;
       }
+
+      // String pathStr = this.cloudFetchedUser.passwordDbPath;
+      // boolean isOk = supaUtils.downloadVault(new File(pathStr).getName(),
+      // Path.of(pathStr));
+      // if (!isOk) {
+      // return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
+      // "[LoginUser.login] Failed to download DB file from the cloud");
+      // }
     }
 
     // registered in the local, but not on cloud -> Sync with local DB
@@ -83,6 +89,14 @@ public class LoginUser {
       if (resp != null) {
         return resp;
       }
+
+      // String pathStr = this.fetchedUser.passwordDbPath;
+      // boolean isOk = supaUtils.uploadVault(Path.of(pathStr), new
+      // File(pathStr).getName());
+      // if (!isOk) {
+      // return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
+      // "[LoginUser.login] Failed to upload DB file to the cloud");
+      // }
     }
 
     // registered in both
@@ -98,6 +112,15 @@ public class LoginUser {
           return resp;
         }
       }
+
+      String pathStr = this.fetchedUser.passwordDbPath;
+      boolean isOk = supaUtils.downloadVault(new File(pathStr).getName(),
+          Path.of(pathStr.concat("_for_merging")));
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
+            "[LoginUser.login] Failed to download DB file from the cloud");
+      }
+
     }
 
     generatePasswordHash();
@@ -115,6 +138,40 @@ public class LoginUser {
     } catch (Exception e) {
       // it's ok even if it fails to update. Just let it know in the logs
       System.err.println("[LoginUser.login] Failed to update the last login time: " + e);
+    }
+
+    // merge DB files if there were copies of them in local disk and cloud
+    String dbPath = this.fetchedUser.passwordDbPath;
+    File dbInLocalDisk = new File(dbPath);
+    File dbToMerge = new File(dbPath.concat("_for_merging"));
+
+    if (!dbInLocalDisk.exists()) {
+      dbToMerge.renameTo(dbInLocalDisk);
+      return null;
+    }
+
+    if (dbToMerge.exists()) {
+      try (VaultManager vm = new VaultManager(dbPath, this.plaintextPassword)) {
+        VaultStatus status = vm.connectToDB();
+        if (status != VaultStatus.DBConnectionSuccess) {
+          return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
+              "[LoginUser.login] Failed to connect to the local database for merging");
+        }
+
+        status = vm.merge(new VaultManager(dbPath.concat("_for_merging"),
+            this.plaintextPassword));
+        if (status != VaultStatus.DBMergeSuccess) {
+          return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+              "[LoginUser.login] Failed to merge the cloud and local database files");
+        }
+
+        dbToMerge.delete();
+        boolean isOk = supaUtils.uploadVault(Path.of(dbPath), new File(dbPath).getName());
+        if (!isOk) {
+          return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
+              "[LoginUser.login] Failed to upload the merged DB file to the cloud");
+        }
+      }
     }
 
     return null;
@@ -223,102 +280,16 @@ public class LoginUser {
     }
   }
 
-  public BackendError verifyDbFilePath() {
-    // if the user isn't logged in, return BackendError
-    if (this.fetchedUser == null) {
-      return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn,
-          "[LoginUser.verifyDbFilePath] User not logged in");
-    }
-    // verify if the Db file is stored in the path saved in the DB
-    Path dirPath = Paths.get(this.fetchedUser.passwordDbPath);
-    if (!Files.exists(dirPath)) {
-      return new BackendError(BackendError.ErrorTypes.DbFileDoesNotExist,
-          "[LoginUser.verifyDbFilePath] The database file does not exist in the saved directory");
-    }
-
-    this.dbPath = dirPath.toString();
-    return null;
-  }
-
-  private String getRandomUUID() {
-    return UUID.randomUUID().toString();
-  }
-
-  private BackendError createLocalDb(String dbPath) {
-    try (VaultManager vm = new VaultManager(dbPath, this.plaintextPassword)) {
-      VaultStatus resp = vm.connectToDB();
-      if (resp != VaultStatus.DBConnectionSuccess) {
-        return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
-            "[RegisterUser.createLocalDb] Failed to create vault. Provided error: " + resp);
-      }
-
-      resp = vm.createVault();
-      if (resp != VaultStatus.DBCreateVaultSuccess) {
-        return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
-            "[RegisterUser.createLocalDb] Failed to create vault. Provided error: " + resp);
-      }
-
-      return null;
-    }
-  }
-
-  public BackendError getNewDbFilePath() {
-    // if the user isn't logged in, return BackendError
-    if (this.fetchedUser == null) {
-      return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn,
-          "[LoginUser.verifyDbFilePath] User not logged in");
-    }
-
-    // the db file will be stored in the `YAPM` directory inside the user's home
-    // directory in their OS
-    String os = System.getProperty("os.name");
-    String homeDir = System.getProperty("user.home");
-    String dbStoreDirectory;
-    String dbFileName;
-
-    if (os.equalsIgnoreCase("windows")) {
-      dbStoreDirectory = homeDir + "\\YAPM";
-    } else {
-      dbStoreDirectory = homeDir + "/YAPM";
-    }
-    Path dirPath = Paths.get(dbStoreDirectory);
-    if (!Files.exists(dirPath)) {
-      File newDir = new File(homeDir, "YAPM");
-      if (newDir.mkdir()) {
-        System.out.println("[RegisterUser] Created the YAPM directory");
-      } else {
-        System.err.println("[RegisterUser] Failed to create the YAPM directory");
-
-        return new BackendError(BackendError.ErrorTypes.FileSystemError,
-            "[LoginUser.generateNewDbFile] Failed to create the YAPM directory");
-      }
-    }
-
-    // now the YAPM directory exists, just need to generate a suitable name for the
-    // db file
-    dbFileName = this.username + getRandomUUID() + ".db";
-    String newDbPath = new File(dbStoreDirectory, dbFileName).toString();
-
-    BackendError response = createLocalDb(newDbPath);
-    if (response != null) {
-      return response;
-    }
-    this.dbPath = newDbPath;
-
-    return null;
-  }
-
   public String getDbFilePath() {
     // redundant code for clarity
-    if (this.dbPath == null) {
+    if (this.fetchedUser.passwordDbPath == null) {
       return null;
     }
 
-    return this.dbPath;
+    return this.fetchedUser.passwordDbPath;
   }
 
   public String getPlaintextPassword() {
     return this.plaintextPassword;
   }
-
 }

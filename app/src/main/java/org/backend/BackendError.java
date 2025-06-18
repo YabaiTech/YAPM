@@ -40,6 +40,11 @@ public class BackendError {
     FailedToSyncWithCloud,
     FailedToSyncWithLocal,
     FailedToRemoveLocalConflict,
+
+    FailedToUploadDbFile,
+    FailedToDownloadDbFile,
+
+    FailedToMergeDbFiles,
   }
 
   private final ErrorTypes errorType;
