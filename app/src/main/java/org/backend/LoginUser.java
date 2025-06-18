@@ -74,13 +74,13 @@ public class LoginUser {
         return resp;
       }
 
-      // String pathStr = this.cloudFetchedUser.passwordDbPath;
-      // boolean isOk = supaUtils.downloadVault(new File(pathStr).getName(),
-      // Path.of(pathStr));
-      // if (!isOk) {
-      // return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
-      // "[LoginUser.login] Failed to download DB file from the cloud");
-      // }
+      String pathStr = FileHandler.getFullPath(this.cloudFetchedUser.passwordDbName);
+      boolean isOk = supaUtils.downloadVault(new File(pathStr).getName(),
+          Path.of(pathStr));
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
+            "[LoginUser.login] Failed to download DB file from the cloud");
+      }
     }
 
     // registered in the local, but not on cloud -> Sync with local DB
@@ -90,13 +90,12 @@ public class LoginUser {
         return resp;
       }
 
-      // String pathStr = this.fetchedUser.passwordDbPath;
-      // boolean isOk = supaUtils.uploadVault(Path.of(pathStr), new
-      // File(pathStr).getName());
-      // if (!isOk) {
-      // return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
-      // "[LoginUser.login] Failed to upload DB file to the cloud");
-      // }
+      String pathStr = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
+      boolean isOk = supaUtils.uploadVault(Path.of(pathStr), new File(pathStr).getName());
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
+            "[LoginUser.login] Failed to upload DB file to the cloud");
+      }
     }
 
     // registered in both
@@ -113,7 +112,7 @@ public class LoginUser {
         }
       }
 
-      String pathStr = this.fetchedUser.passwordDbPath;
+      String pathStr = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
       boolean isOk = supaUtils.downloadVault(new File(pathStr).getName(),
           Path.of(pathStr.concat("_for_merging")));
       if (!isOk) {
@@ -141,7 +140,7 @@ public class LoginUser {
     }
 
     // merge DB files if there were copies of them in local disk and cloud
-    String dbPath = this.fetchedUser.passwordDbPath;
+    String dbPath = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
     File dbInLocalDisk = new File(dbPath);
     File dbToMerge = new File(dbPath.concat("_for_merging"));
 
@@ -181,7 +180,7 @@ public class LoginUser {
     try {
       BackendError response = this.localDbOps.addUser(cloudFetchedUser.username, cloudFetchedUser.email,
           cloudFetchedUser.hashedPassword,
-          cloudFetchedUser.salt, cloudFetchedUser.passwordDbPath, cloudFetchedUser.lastLoggedInTime);
+          cloudFetchedUser.salt, cloudFetchedUser.passwordDbName, cloudFetchedUser.lastLoggedInTime);
 
       if (response != null) {
         return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
@@ -202,7 +201,7 @@ public class LoginUser {
     try {
       BackendError response = this.cloudDbOps.addUser(fetchedUser.username, fetchedUser.email,
           fetchedUser.hashedPassword,
-          fetchedUser.salt, fetchedUser.passwordDbPath, fetchedUser.lastLoggedInTime);
+          fetchedUser.salt, fetchedUser.passwordDbName, fetchedUser.lastLoggedInTime);
 
       if (response != null) {
         return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
@@ -282,11 +281,11 @@ public class LoginUser {
 
   public String getDbFilePath() {
     // redundant code for clarity
-    if (this.fetchedUser.passwordDbPath == null) {
+    if (this.fetchedUser.passwordDbName == null) {
       return null;
     }
 
-    return this.fetchedUser.passwordDbPath;
+    return FileHandler.getFullPath(this.fetchedUser.passwordDbName);
   }
 
   public String getPlaintextPassword() {

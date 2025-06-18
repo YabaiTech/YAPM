@@ -67,7 +67,7 @@ public class DBOperations {
         fetchedUser.email = res.getString("email");
         fetchedUser.hashedPassword = res.getString("hashed_password");
         fetchedUser.salt = res.getString("salt");
-        fetchedUser.passwordDbPath = res.getString("pwd_db_path");
+        fetchedUser.passwordDbName = res.getString("pwd_db_path");
         fetchedUser.lastLoggedInTime = res.getLong("last_logged_in");
       }
 
@@ -91,7 +91,7 @@ public class DBOperations {
         fetchedUser.email = res.getString("email");
         fetchedUser.hashedPassword = res.getString("hashed_password");
         fetchedUser.salt = res.getString("salt");
-        fetchedUser.passwordDbPath = res.getString("pwd_db_path");
+        fetchedUser.passwordDbName = res.getString("pwd_db_path");
         fetchedUser.lastLoggedInTime = res.getLong("last_logged_in");
       }
 

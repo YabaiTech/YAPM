@@ -201,6 +201,8 @@ public class RegisterUser {
     return UUID.randomUUID().toString();
   }
 
+  // TODO: Refactor to it return its error as value. Also, move it into
+  // the `FileHandler` class
   private void setDbFilename() throws FileSystemException {
     boolean isOk = FileHandler.createDbStoreDirIfNotExisting();
     if (!isOk) {
@@ -308,14 +310,16 @@ public class RegisterUser {
 
     try {
       BackendError resp = this.localDbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
-          FileHandler.getFullPath(this.dbFileName),
+          // FileHandler.getFullPath(this.dbFileName),
+          this.dbFileName,
           System.currentTimeMillis());
       if (resp != null) {
         return resp;
       }
 
       resp = this.cloudDbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
-          FileHandler.getFullPath(this.dbFileName),
+          // FileHandler.getFullPath(this.dbFileName),
+          this.dbFileName,
           System.currentTimeMillis());
       if (resp != null) {
         this.localDbOps.deleteUser(this.username);
