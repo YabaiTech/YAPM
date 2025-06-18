@@ -19,6 +19,7 @@ public class BackendError {
     PasswordNotProvided,
     HashedPasswordNotGenerated,
     SaltForHashNotGenerated,
+    DbFileNameNotSet,
 
     UserDoesNotExist,
 
@@ -50,7 +51,7 @@ public class BackendError {
   private final ErrorTypes errorType;
   private final String additionalContext;
 
-  BackendError(ErrorTypes errType, String errMsg) {
+  public BackendError(ErrorTypes errType, String errMsg) {
     this.errorType = errType;
     this.additionalContext = errMsg;
   }

@@ -1,12 +1,12 @@
 package org.backend;
 
+import org.utils.InputValidator;
 import org.vault.*;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.security.spec.KeySpec;
 import java.util.Base64;
-import java.util.UUID;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -25,7 +25,7 @@ public class LoginUser {
     this.localDbOps = new DBOperations(localDb);
     this.cloudDbOps = new DBOperations(cloudDb);
 
-    if (isValidUsername(accountIdentifier)) {
+    if (InputValidator.isValidUsername(accountIdentifier)) {
       this.username = accountIdentifier;
     } else {
       this.email = accountIdentifier;
@@ -235,25 +235,6 @@ public class LoginUser {
     return null;
   }
 
-  /*
-   * A valid username can only include alphanumeric characters.
-   */
-  private boolean isValidUsername(String uname) {
-    for (int i = 0; i < uname.length(); i++) {
-      char c = uname.charAt(i);
-
-      boolean isLowercase = (c >= 'a') && (c <= 'z');
-      boolean isUppercase = (c >= 'A') && (c <= 'Z');
-      boolean isNumeric = (c >= '0') && (c <= '9');
-
-      if (!isLowercase && !isUppercase && !isNumeric) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   private void generatePasswordHash() {
     if (this.fetchedUser == null) {
       return;
@@ -273,7 +254,7 @@ public class LoginUser {
       this.hashedPassword = Base64.getEncoder().encodeToString(hash);
     } catch (Exception e) {
       System.err.println(
-          "[RegisterUser] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
+          "[LoginUser.generatePasswordHash] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
               + e);
       System.exit(1);
     }
