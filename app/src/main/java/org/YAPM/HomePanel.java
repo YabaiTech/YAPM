@@ -139,13 +139,14 @@ public class HomePanel extends JPanel {
 
         // Logout
         logoutButton.addActionListener(e -> {
-            mainUI.showPage("login");
             this.vm.closeDB();
             BackendError err = App.currentLoginUser.logout();
             if (err != null) {
                 JOptionPane.showMessageDialog(this, "Failed to properly log out", "Error", JOptionPane.ERROR_MESSAGE);
                 System.err.println("[HomePanel.HomePanel] FATAL: Failed to properly log out: " + err.getErrorType() + " -> " + err.getContext());
             }
+            App.currentLoginUser = null;
+            mainUI.showPage("login");
         });
 
         // Edit entry
