@@ -22,7 +22,7 @@ import org.misc.*;
 public class HomePanel extends JPanel {
 
     private final MainUI mainUI;
-    private final VaultManager vm;
+    private VaultManager vm;
     private final JTable table;
     private final ArrayList<Entry> credentials = new ArrayList<>();
 
@@ -167,7 +167,16 @@ public class HomePanel extends JPanel {
         refreshButton.addActionListener(e -> refreshEntryTable());
 
         // Logout
-        logoutButton.addActionListener(e -> mainUI.showPage("login"));
+        logoutButton.addActionListener(e -> {
+            this.vm.closeDB();
+            BackendError err = App.currentLoginUser.logout();
+            if (err != null) {
+                JOptionPane.showMessageDialog(this, "Failed to properly log out", "Error", JOptionPane.ERROR_MESSAGE);
+                System.err.println("[HomePanel.HomePanel] FATAL: Failed to properly log out: " + err.getErrorType() + " -> " + err.getContext());
+            }
+            App.currentLoginUser = null;
+            mainUI.showPage("login");
+        });
 
         // Edit entry
         editButton.addActionListener(e -> {
@@ -290,6 +299,23 @@ public class HomePanel extends JPanel {
 
     private void refreshEntryTable() {
         credentials.clear();
+        vm.close();
+
+        BackendError err = App.currentLoginUser.sync();
+        if (err != null) {
+            JOptionPane.showMessageDialog(this, "Failed to sync with cloud!", "Error", JOptionPane.ERROR_MESSAGE);
+            System.err.println("[HomePanel.refreshEntryTable] Failed to sync with cloud: " + err.getErrorType() + " -> " + err.getContext());
+        }
+
+        String dbPath = App.currentLoginUser.getDbFilePath();
+        String pwd = App.currentLoginUser.getPlaintextPassword();
+        this.vm = new VaultManager(dbPath, pwd);
+        VaultStatus resp = vm.connectToDB();
+        if (resp != VaultStatus.DBConnectionSuccess) {
+            JOptionPane.showMessageDialog(this, "Failed to open vault!", "Error", JOptionPane.ERROR_MESSAGE);
+            System.err.println("[HomePanel.refreshEntryTable] Failed to open vault: " + resp);
+        }
+
         VaultStatus status = vm.openVault(credentials);
         if (status != VaultStatus.DBOpenVaultSuccess) {
             JOptionPane.showMessageDialog(this, "Failed to reload entries: " + status, "Error", JOptionPane.ERROR_MESSAGE);

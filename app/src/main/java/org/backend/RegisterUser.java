@@ -1,12 +1,10 @@
 package org.backend;
 
+import org.utils.InputValidator;
 import org.vault.*;
 
 import java.io.File;
-import java.nio.file.FileSystemException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.Base64;
@@ -23,7 +21,7 @@ public class RegisterUser {
   private String plaintextPassword;
   private String hashedPassword;
   private String hashSaltBase64;
-  private String localDbFilePath;
+  private String dbFileName;
 
   public RegisterUser(DatabaseConnection loaclDb, DatabaseConnection cloudDb) {
     this.localDbOps = new DBOperations(loaclDb);
@@ -31,7 +29,7 @@ public class RegisterUser {
   }
 
   public BackendError setUsername(String uname) {
-    if (isValidUsername(uname)) {
+    if (InputValidator.isValidUsername(uname)) {
       this.username = uname;
       return null;
     }
@@ -40,31 +38,8 @@ public class RegisterUser {
         "[RegisterUser.setUsername] Username contains characters that are not alphabets or numbers");
   }
 
-  /*
-   * A valid username can only include alphanumeric characters.
-   */
-  private boolean isValidUsername(String uname) {
-    if (uname.isEmpty()) {
-      return false;
-    }
-
-    for (int i = 0; i < uname.length(); i++) {
-      char c = uname.charAt(i);
-
-      boolean isLowercase = (c >= 'a') && (c <= 'z');
-      boolean isUppercase = (c >= 'A') && (c <= 'Z');
-      boolean isNumeric = (c >= '0') && (c <= '9');
-
-      if (!isLowercase && !isUppercase && !isNumeric) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   public BackendError setEmail(String email) {
-    if (isValidEmail(email)) {
+    if (InputValidator.isValidEmail(email)) {
       this.email = email;
       return null;
     }
@@ -72,108 +47,14 @@ public class RegisterUser {
     return new BackendError(BackendError.ErrorTypes.InvalidEmail, "[RegisterUser.setEmail] Invalid email provided");
   }
 
-  private boolean isValidEmail(String email) {
-    if (email.isEmpty()) {
-      return false;
-    }
-
-    String[] emailsParts = email.split("@");
-    if (emailsParts.length != 2 || emailsParts[0].isEmpty() ||
-        emailsParts[1].isEmpty()) {
-      return false;
-    }
-
-    String[] urlParts = emailsParts[1].split("\\.");
-    if (urlParts.length < 2 || urlParts[0].isEmpty() || urlParts[1].isEmpty()) {
-      return false;
-    }
-
-    return true;
-  }
-
   public BackendError setPassword(String pwd) {
-    BackendError pwdProblems = isValidPassword(pwd);
+    BackendError pwdProblems = InputValidator.isValidPassword(pwd);
     if (pwdProblems == null) {
       this.plaintextPassword = pwd;
       return null;
     }
 
     return pwdProblems;
-  }
-
-  /*
-   * A valid password has to meet the following criteria:
-   * 1) At least 8 characters long
-   * 2) At least 1 lowercase letter
-   * 3) At least 1 uppercase letter
-   * 4) At least 1 numberical digit
-   * 5) At least 1 special characters/symbols (Make sure UTF-8)
-   * 6) No characters are outside the above catagories are allowed
-   */
-  private BackendError isValidPassword(String pwd) {
-    String errorTag = "[RegisterUser.isValidPassword] ";
-
-    boolean isAtleast8Chars = false;
-    boolean hasAtleast1Lowercase = false;
-    boolean hasAtleast1Uppercase = false;
-    boolean hasAtleast1Number = false;
-    boolean hasAtleast1Special = false;
-
-    if (pwd.length() >= 8) {
-      isAtleast8Chars = true;
-    } else {
-      return new BackendError(BackendError.ErrorTypes.PasswordNeedsToBeAtleast8Chars,
-          errorTag + "Password needs to be at least 8 characters long");
-    }
-
-    for (int i = 0; i < pwd.length(); i++) {
-      char c = pwd.charAt(i);
-
-      boolean isLowercase = (c >= 'a') && (c <= 'z');
-      boolean isUppercase = (c >= 'A') && (c <= 'Z');
-      boolean isNumeric = (c >= '0') && (c <= '9');
-      boolean specialCondition = ((c >= '!') && (c <= '/')) || ((c >= ':') && (c <= '@')) || ((c >= '[') && (c <= '`'))
-          || ((c >= '{') && (c <= '~'));
-      boolean isSpecialChar = specialCondition;
-
-      if (isLowercase) {
-        hasAtleast1Lowercase = true;
-      } else if (isUppercase) {
-        hasAtleast1Uppercase = true;
-      } else if (isNumeric) {
-        hasAtleast1Number = true;
-      } else if (isSpecialChar) {
-        hasAtleast1Special = true;
-      } else {
-        // contains characters that are outside the allowed characters
-        return new BackendError(BackendError.ErrorTypes.PasswordContainsUnallowedChars,
-            errorTag
-                + "Password can only have characters that are lowercase or uppercase alphabets, numbers, special characters");
-      }
-
-      if (isAtleast8Chars && hasAtleast1Lowercase && hasAtleast1Uppercase && hasAtleast1Number && hasAtleast1Special) {
-        return null;
-      }
-    }
-
-    if (!hasAtleast1Lowercase) {
-      return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1Lowercase,
-          errorTag + "Password needs to have at least 1 lowercase letter");
-    }
-    if (!hasAtleast1Uppercase) {
-      return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1Uppercase,
-          errorTag + "Password needs to have at least 1 uppercase letter");
-    }
-    if (!hasAtleast1Number) {
-      return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1Number,
-          errorTag + "Password needs to have at least 1 number");
-    }
-    if (!hasAtleast1Special) {
-      return new BackendError(BackendError.ErrorTypes.PasswordNeedsAtleast1SpecialChar,
-          errorTag + "Password needs to have at least 1 special character");
-    }
-
-    return null; // Unreachable code. For LSP.
   }
 
   private BackendError isEverythingSet() {
@@ -195,48 +76,26 @@ public class RegisterUser {
       return new BackendError(BackendError.ErrorTypes.SaltForHashNotGenerated,
           errorTag + "The salt for the hash is not generated");
     }
+    if (this.dbFileName == null) {
+      return new BackendError(BackendError.ErrorTypes.DbFileNameNotSet, errorTag + "Local database filename not set");
+    }
 
     return null;
   }
 
-  private String getRandomUUID() {
-    return UUID.randomUUID().toString();
-  }
-
-  private String getDbFilePath() throws FileSystemException {
-    // the db file will be stored in the `YAPM` directory inside the user's home
-    // directory in their OS
-    String os = System.getProperty("os.name");
-    String homeDir = System.getProperty("user.home");
-    String dbStoreDirectory;
-    String dbFileName;
-
-    if (os.equalsIgnoreCase("windows")) {
-      dbStoreDirectory = homeDir + "\\YAPM";
-    } else {
-      dbStoreDirectory = homeDir + "/YAPM";
-    }
-    Path dirPath = Paths.get(dbStoreDirectory);
-    if (!Files.exists(dirPath)) {
-      File newDir = new File(homeDir, "YAPM");
-      if (newDir.mkdir()) {
-        System.out.println("[RegisterUser] Created the YAPM directory");
-      } else {
-        System.err.println("[RegisterUser] Failed to create the YAPM directory");
-
-        throw new FileSystemException("[RegisterUser.getDbFilePath] Failed to create the YAPM directory");
-      }
+  private BackendError setDbFilename() {
+    boolean isOk = FileHandler.createDbStoreDirIfNotExisting();
+    if (!isOk) {
+      return new BackendError(BackendError.ErrorTypes.FailedToCreateDbDir,
+          "[RegisterUser.setDbFilename] Failed to create `YAPM` directory to store local DB files");
     }
 
-    // now the YAPM directory exists, just need to generate a suitable name for the
-    // db file
-    dbFileName = this.username + getRandomUUID() + ".db";
-
-    return new File(dbStoreDirectory, dbFileName).toString();
+    this.dbFileName = this.username + UUID.randomUUID().toString() + ".db";
+    return null;
   }
 
-  private BackendError createLocalDb(String dbPath) {
-    try (VaultManager vm = new VaultManager(dbPath, this.plaintextPassword)) {
+  private BackendError createLocalDb(String dbName) {
+    try (VaultManager vm = new VaultManager(FileHandler.getFullPath(dbName), this.plaintextPassword)) {
       VaultStatus resp = vm.connectToDB();
       if (resp != VaultStatus.DBConnectionSuccess) {
         return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
@@ -295,7 +154,7 @@ public class RegisterUser {
       this.hashedPassword = Base64.getEncoder().encodeToString(hash);
     } catch (Exception e) {
       System.err.println(
-          "[RegisterUser] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
+          "[RegisterUser.generatePasswordHash] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
               + e);
       System.exit(1);
     }
@@ -303,6 +162,8 @@ public class RegisterUser {
 
   public BackendError register() {
     generatePasswordHash();
+    setDbFilename();
+
     BackendError response = isEverythingSet();
     if (response != null) {
       return response;
@@ -321,8 +182,7 @@ public class RegisterUser {
     }
 
     try {
-      this.localDbFilePath = getDbFilePath();
-      response = createLocalDb(this.localDbFilePath);
+      response = createLocalDb(this.dbFileName);
       if (response != null) {
         return response;
       }
@@ -333,14 +193,16 @@ public class RegisterUser {
 
     try {
       BackendError resp = this.localDbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
-          this.localDbFilePath,
+          // FileHandler.getFullPath(this.dbFileName),
+          this.dbFileName,
           System.currentTimeMillis());
       if (resp != null) {
         return resp;
       }
 
       resp = this.cloudDbOps.addUser(this.username, this.email, this.hashedPassword, this.hashSaltBase64,
-          this.localDbFilePath,
+          // FileHandler.getFullPath(this.dbFileName),
+          this.dbFileName,
           System.currentTimeMillis());
       if (resp != null) {
         this.localDbOps.deleteUser(this.username);
@@ -349,6 +211,14 @@ public class RegisterUser {
     } catch (Exception e) {
       return new BackendError(BackendError.ErrorTypes.DbTransactionError,
           "[RegisterUser.register] Failed to add user to the database. Given exception: " + e);
+    }
+
+    SupabaseUtils supaUtils = new SupabaseUtils();
+    String localDbFilePath = FileHandler.getFullPath(this.dbFileName);
+    boolean isOk = supaUtils.uploadVault(Path.of(localDbFilePath), new File(localDbFilePath).getName());
+    if (!isOk) {
+      return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
+          "[LoginUser.login] Failed to upload DB file to the cloud");
     }
 
     return null;

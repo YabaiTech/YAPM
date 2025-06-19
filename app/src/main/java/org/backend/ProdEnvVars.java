@@ -2,12 +2,16 @@ package org.backend;
 
 import io.github.cdimascio.dotenv.Dotenv;
 
-class ProdEnvVars {
-  private Dotenv dotenv;
+public class ProdEnvVars {
+  private static Dotenv dotenv;
 
   public ProdEnvVars() {
+    if (dotenv != null) {
+      return;
+    }
+
     try {
-      this.dotenv = Dotenv.load();
+      dotenv = Dotenv.load();
     } catch (Exception e) {
       System.out.println("You might have forgotten to copy the .env file into the /app directory");
       System.exit(1);
@@ -15,6 +19,6 @@ class ProdEnvVars {
   }
 
   public String get(String varName) {
-    return this.dotenv.get(varName);
+    return dotenv.get(varName);
   }
 }

@@ -5,6 +5,6 @@ public class UserInfo {
   public String email;
   public String hashedPassword;
   public String salt;
-  public String passwordDbPath;
+  public String passwordDbName;
   public long lastLoggedInTime;
 }

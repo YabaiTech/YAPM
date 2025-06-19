@@ -1,14 +1,12 @@
 package org.backend;
 
+import org.utils.InputValidator;
 import org.vault.*;
 
 import java.io.File;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.spec.KeySpec;
 import java.util.Base64;
-import java.util.UUID;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -20,7 +18,6 @@ public class LoginUser {
   private String email;
   private final String plaintextPassword;
   private String hashedPassword;
-  private String dbPath;
   private UserInfo fetchedUser;
   private UserInfo cloudFetchedUser;
 
@@ -28,7 +25,7 @@ public class LoginUser {
     this.localDbOps = new DBOperations(localDb);
     this.cloudDbOps = new DBOperations(cloudDb);
 
-    if (isValidUsername(accountIdentifier)) {
+    if (InputValidator.isValidUsername(accountIdentifier)) {
       this.username = accountIdentifier;
     } else {
       this.email = accountIdentifier;
@@ -68,12 +65,21 @@ public class LoginUser {
     }
 
     BackendError resp;
+    SupabaseUtils supaUtils = new SupabaseUtils();
 
     // registered in the cloud, but not on local -> Sync with cloud DB
     if ((this.cloudFetchedUser.lastLoggedInTime != -1) && (this.fetchedUser.lastLoggedInTime == -1)) {
       resp = syncWithCloudDb();
       if (resp != null) {
         return resp;
+      }
+
+      String pathStr = FileHandler.getFullPath(this.cloudFetchedUser.passwordDbName);
+      boolean isOk = supaUtils.downloadVault(new File(pathStr).getName(),
+          Path.of(pathStr));
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
+            "[LoginUser.login] Failed to download DB file from the cloud");
       }
     }
 
@@ -82,6 +88,13 @@ public class LoginUser {
       resp = syncWithLocalDb();
       if (resp != null) {
         return resp;
+      }
+
+      String pathStr = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
+      boolean isOk = supaUtils.uploadVault(Path.of(pathStr), new File(pathStr).getName());
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
+            "[LoginUser.login] Failed to upload DB file to the cloud");
       }
     }
 
@@ -98,6 +111,15 @@ public class LoginUser {
           return resp;
         }
       }
+
+      String pathStr = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
+      boolean isOk = supaUtils.downloadVault(new File(pathStr).getName(),
+          Path.of(pathStr.concat("_for_merging")));
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
+            "[LoginUser.login] Failed to download DB file from the cloud");
+      }
+
     }
 
     generatePasswordHash();
@@ -117,6 +139,46 @@ public class LoginUser {
       System.err.println("[LoginUser.login] Failed to update the last login time: " + e);
     }
 
+    // merge DB files if there were copies of them in local disk and cloud
+    String dbPath = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
+    File dbInLocalDisk = new File(dbPath);
+    File dbToMerge = new File(dbPath.concat("_for_merging"));
+
+    if (!dbInLocalDisk.exists()) {
+      dbToMerge.renameTo(dbInLocalDisk);
+      return null;
+    }
+
+    if (dbToMerge.exists()) {
+      try (VaultManager vm = new VaultManager(dbPath, this.plaintextPassword)) {
+        VaultStatus status = vm.connectToDB();
+        if (status != VaultStatus.DBConnectionSuccess) {
+          return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
+              "[LoginUser.login] Failed to connect to the local database for merging");
+        }
+
+        status = vm.merge(new VaultManager(dbPath.concat("_for_merging"),
+            this.plaintextPassword));
+        if (status != VaultStatus.DBMergeSuccess) {
+          return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+              "[LoginUser.login] Failed to merge the cloud and local database files");
+        }
+
+        status = vm.closeDB();
+        if (status != VaultStatus.DBCloseSuccess) {
+          return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+              "[LoginUser.login] Failed to merge the cloud and local database files");
+        }
+
+        dbToMerge.delete();
+        boolean isOk = supaUtils.uploadVault(Path.of(dbPath), new File(dbPath).getName());
+        if (!isOk) {
+          return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
+              "[LoginUser.login] Failed to upload the merged DB file to the cloud");
+        }
+      }
+    }
+
     return null;
   }
 
@@ -124,7 +186,7 @@ public class LoginUser {
     try {
       BackendError response = this.localDbOps.addUser(cloudFetchedUser.username, cloudFetchedUser.email,
           cloudFetchedUser.hashedPassword,
-          cloudFetchedUser.salt, cloudFetchedUser.passwordDbPath, cloudFetchedUser.lastLoggedInTime);
+          cloudFetchedUser.salt, cloudFetchedUser.passwordDbName, cloudFetchedUser.lastLoggedInTime);
 
       if (response != null) {
         return new BackendError(BackendError.ErrorTypes.FailedToSyncWithCloud,
@@ -145,7 +207,7 @@ public class LoginUser {
     try {
       BackendError response = this.cloudDbOps.addUser(fetchedUser.username, fetchedUser.email,
           fetchedUser.hashedPassword,
-          fetchedUser.salt, fetchedUser.passwordDbPath, fetchedUser.lastLoggedInTime);
+          fetchedUser.salt, fetchedUser.passwordDbName, fetchedUser.lastLoggedInTime);
 
       if (response != null) {
         return new BackendError(BackendError.ErrorTypes.FailedToSyncWithLocal,
@@ -179,25 +241,6 @@ public class LoginUser {
     return null;
   }
 
-  /*
-   * A valid username can only include alphanumeric characters.
-   */
-  private boolean isValidUsername(String uname) {
-    for (int i = 0; i < uname.length(); i++) {
-      char c = uname.charAt(i);
-
-      boolean isLowercase = (c >= 'a') && (c <= 'z');
-      boolean isUppercase = (c >= 'A') && (c <= 'Z');
-      boolean isNumeric = (c >= '0') && (c <= '9');
-
-      if (!isLowercase && !isUppercase && !isNumeric) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
   private void generatePasswordHash() {
     if (this.fetchedUser == null) {
       return;
@@ -217,108 +260,90 @@ public class LoginUser {
       this.hashedPassword = Base64.getEncoder().encodeToString(hash);
     } catch (Exception e) {
       System.err.println(
-          "[RegisterUser] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
+          "[LoginUser.generatePasswordHash] Either the PBKDF2WithHmacSHA1 hashing algorithm is not available or the provided PBEKeySpec is wrong: "
               + e);
       System.exit(1);
     }
   }
 
-  public BackendError verifyDbFilePath() {
-    // if the user isn't logged in, return BackendError
-    if (this.fetchedUser == null) {
-      return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn,
-          "[LoginUser.verifyDbFilePath] User not logged in");
-    }
-    // verify if the Db file is stored in the path saved in the DB
-    Path dirPath = Paths.get(this.fetchedUser.passwordDbPath);
-    if (!Files.exists(dirPath)) {
-      return new BackendError(BackendError.ErrorTypes.DbFileDoesNotExist,
-          "[LoginUser.verifyDbFilePath] The database file does not exist in the saved directory");
-    }
-
-    this.dbPath = dirPath.toString();
-    return null;
-  }
-
-  private String getRandomUUID() {
-    return UUID.randomUUID().toString();
-  }
-
-  private BackendError createLocalDb(String dbPath) {
-    try (VaultManager vm = new VaultManager(dbPath, this.plaintextPassword)) {
-      VaultStatus resp = vm.connectToDB();
-      if (resp != VaultStatus.DBConnectionSuccess) {
-        return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
-            "[RegisterUser.createLocalDb] Failed to create vault. Provided error: " + resp);
-      }
-
-      resp = vm.createVault();
-      if (resp != VaultStatus.DBCreateVaultSuccess) {
-        return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
-            "[RegisterUser.createLocalDb] Failed to create vault. Provided error: " + resp);
-      }
-
-      return null;
-    }
-  }
-
-  public BackendError getNewDbFilePath() {
-    // if the user isn't logged in, return BackendError
-    if (this.fetchedUser == null) {
-      return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn,
-          "[LoginUser.verifyDbFilePath] User not logged in");
-    }
-
-    // the db file will be stored in the `YAPM` directory inside the user's home
-    // directory in their OS
-    String os = System.getProperty("os.name");
-    String homeDir = System.getProperty("user.home");
-    String dbStoreDirectory;
-    String dbFileName;
-
-    if (os.equalsIgnoreCase("windows")) {
-      dbStoreDirectory = homeDir + "\\YAPM";
-    } else {
-      dbStoreDirectory = homeDir + "/YAPM";
-    }
-    Path dirPath = Paths.get(dbStoreDirectory);
-    if (!Files.exists(dirPath)) {
-      File newDir = new File(homeDir, "YAPM");
-      if (newDir.mkdir()) {
-        System.out.println("[RegisterUser] Created the YAPM directory");
-      } else {
-        System.err.println("[RegisterUser] Failed to create the YAPM directory");
-
-        return new BackendError(BackendError.ErrorTypes.FileSystemError,
-            "[LoginUser.generateNewDbFile] Failed to create the YAPM directory");
-      }
-    }
-
-    // now the YAPM directory exists, just need to generate a suitable name for the
-    // db file
-    dbFileName = this.username + getRandomUUID() + ".db";
-    String newDbPath = new File(dbStoreDirectory, dbFileName).toString();
-
-    BackendError response = createLocalDb(newDbPath);
-    if (response != null) {
-      return response;
-    }
-    this.dbPath = newDbPath;
-
-    return null;
-  }
-
   public String getDbFilePath() {
     // redundant code for clarity
-    if (this.dbPath == null) {
+    if (this.fetchedUser.passwordDbName == null) {
       return null;
     }
 
-    return this.dbPath;
+    return FileHandler.getFullPath(this.fetchedUser.passwordDbName);
   }
 
   public String getPlaintextPassword() {
     return this.plaintextPassword;
   }
 
+  public BackendError sync() {
+
+    if (this.fetchedUser == null) {
+      return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn, "[LoginUser.logout] User isn't logged in");
+    }
+
+    String localDbPath = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
+    String cloudDbPath = localDbPath.concat("_for_merging");
+
+    SupabaseUtils supaUtils = new SupabaseUtils();
+    boolean isOk = supaUtils.downloadVault(new File(localDbPath).getName(), Path.of(cloudDbPath));
+    if (!isOk) {
+      return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
+          "[LoginUser.login] Failed to download DB file from the cloud");
+    }
+
+    // merge DBs
+    File dbToMerge = new File(cloudDbPath);
+
+    try (VaultManager vm = new VaultManager(localDbPath, this.plaintextPassword);
+        VaultManager otherVm = new VaultManager(cloudDbPath, this.plaintextPassword);) {
+
+      VaultStatus status = vm.merge(otherVm);
+      if (status != VaultStatus.DBMergeSuccess) {
+        return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+            "[LoginUser.login] Failed to merge the cloud and local database files");
+      }
+
+      status = vm.closeDB();
+      if (status != VaultStatus.DBCloseSuccess) {
+        return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+            "[LoginUser.login] Failed to close the local vault after successful merging");
+      }
+      status = otherVm.closeDB();
+      if (status != VaultStatus.DBCloseSuccess) {
+        return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+            "[LoginUser.login] Failed to close the cloud vault after successful merging");
+      }
+
+      dbToMerge.delete();
+      isOk = supaUtils.uploadVault(Path.of(localDbPath), new File(localDbPath).getName());
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
+            "[LoginUser.login] Failed to upload the merged DB file to the cloud");
+      }
+    }
+
+    return null;
+  }
+
+  public BackendError logout() {
+    BackendError err = sync();
+    if (err != null) {
+      return err;
+    }
+
+    // attempt to update the last logged in time (failing isn't a fatal error)
+    try {
+      this.localDbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
+      this.cloudDbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
+    } catch (Exception e) {
+      // it's ok even if it fails to update. Just let it know in the logs
+      System.err.println("[LoginUser.login] Failed to update the last login time: " + e);
+    }
+
+    return null;
+  }
 }

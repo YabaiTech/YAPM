@@ -1,5 +1,7 @@
 package org.backend;
 
+import org.vault.*;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -7,6 +9,8 @@ import org.junit.jupiter.api.TestInstance;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
 import java.util.ArrayList;
@@ -37,6 +41,21 @@ class LoginUserTest {
     return randNum;
   }
 
+  void createLocalDbFile(String dbName) {
+    try (VaultManager vm = new VaultManager(FileHandler.getFullPath(dbName), this.commonPlaintextPassword)) {
+      VaultStatus resp = vm.connectToDB();
+      if (resp != VaultStatus.DBConnectionSuccess) {
+        throw new IllegalStateException(
+            "[LoginUserTest.createLocalDb] Failed to connect to vault for mock user: " + resp);
+      }
+
+      resp = vm.createVault();
+      if (resp != VaultStatus.DBCreateVaultSuccess) {
+        throw new IllegalStateException("[LoginUserTest.createLocalDb] Failed to create vault for mock user: " + resp);
+      }
+    }
+  }
+
   void generateUser() {
     int randNum = getRandomNum();
 
@@ -45,7 +64,7 @@ class LoginUserTest {
 
     mockUser.username = "genUser" + randNum;
     mockUser.email = "genUser@gmail.com" + randNum;
-    mockUser.passwordDbPath = "gebUser" + randNum + ".db";
+    mockUser.passwordDbName = "genUser" + randNum + ".db";
     mockUser.lastLoggedInTime = System.currentTimeMillis();
 
     // For salt
@@ -79,7 +98,7 @@ class LoginUserTest {
       DBOperations localOps = new DBOperations(this.localDb);
 
       BackendError resp = localOps.addUser(usr.username, usr.email, usr.hashedPassword, usr.salt,
-          usr.passwordDbPath, usr.lastLoggedInTime);
+          usr.passwordDbName, usr.lastLoggedInTime);
       if (resp != null) {
         return resp;
       }
@@ -95,7 +114,7 @@ class LoginUserTest {
     try {
       DBOperations cloudOps = new DBOperations(this.cloudDb);
 
-      BackendError resp = cloudOps.addUser(usr.username, usr.email, usr.hashedPassword, usr.salt, usr.passwordDbPath,
+      BackendError resp = cloudOps.addUser(usr.username, usr.email, usr.hashedPassword, usr.salt, usr.passwordDbName,
           usr.lastLoggedInTime);
       if (resp != null) {
         return resp;
@@ -120,7 +139,8 @@ class LoginUserTest {
 
     BackendError response = reg.register();
     if (response != null) {
-      System.err.println("[LoginUserTest.setup] Failed to register for login test: " + response.getErrorType());
+      System.err.println("[LoginUserTest.setup] Failed to register for login test: " + response.getErrorType() + " -> "
+          + response.getContext());
 
       throw new IllegalStateException("[LoginUserTest.setup] Failed to register a user to DB for login testing");
     }
@@ -139,6 +159,13 @@ class LoginUserTest {
 
       throw new IllegalStateException("[LoginUserTest.setup] Failed to seed a user to DB for login testing");
     }
+    createLocalDbFile(this.createdMockUsers.get(1).passwordDbName);
+    String localDbPath = FileHandler.getFullPath(this.createdMockUsers.get(1).passwordDbName);
+    File localDbFileRef = new File(localDbPath);
+    SupabaseUtils supaUtils = new SupabaseUtils();
+    boolean isUploaded = supaUtils.uploadVault(Path.of(localDbPath), this.createdMockUsers.get(1).passwordDbName);
+    assert (localDbFileRef.delete());
+    assert (isUploaded);
 
     // Case-2: User registered only in local DB
     response = addToLocalDb(this.createdMockUsers.get(2));
@@ -148,6 +175,10 @@ class LoginUserTest {
 
       throw new IllegalStateException("[LoginUserTest.setup] Failed to seed a user to DB for login testing");
     }
+    createLocalDbFile(this.createdMockUsers.get(2).passwordDbName);
+    localDbPath = FileHandler.getFullPath(this.createdMockUsers.get(2).passwordDbName);
+    localDbFileRef = new File(localDbPath);
+    assert (localDbFileRef.exists());
 
     // Case-3: Got tested with `validCredentialLogsInUsingUsername()` and
     // `validCredentialLogsInUsingEmail()`
@@ -171,6 +202,12 @@ class LoginUserTest {
 
       throw new IllegalStateException("[LoginUserTest.setup] Failed to seed a user to DB for login testing");
     }
+    createLocalDbFile(this.createdMockUsers.get(3).passwordDbName);
+    localDbPath = FileHandler.getFullPath(this.createdMockUsers.get(3).passwordDbName);
+    localDbFileRef = new File(localDbPath);
+    isUploaded = supaUtils.uploadVault(Path.of(localDbPath), this.createdMockUsers.get(1).passwordDbName);
+    assert (isUploaded);
+    assert (localDbFileRef.exists());
   }
 
   @Test
@@ -231,7 +268,8 @@ class LoginUserTest {
   @Test
   void shouldSyncWithCloud() {
     UserInfo u1 = this.createdMockUsers.get(1);
-    LoginUser auth = new LoginUser(this.localDb, this.cloudDb, u1.username, this.commonPlaintextPassword);
+    LoginUser auth = new LoginUser(this.localDb, this.cloudDb, u1.username,
+        this.commonPlaintextPassword);
 
     assertDoesNotThrow(() -> {
       DBOperations localOps = new DBOperations(this.localDb);
@@ -249,7 +287,8 @@ class LoginUserTest {
   @Test
   void shouldSyncWithLocal() {
     UserInfo u2 = this.createdMockUsers.get(2);
-    LoginUser auth = new LoginUser(this.localDb, this.cloudDb, u2.username, this.commonPlaintextPassword);
+    LoginUser auth = new LoginUser(this.localDb, this.cloudDb, u2.username,
+        this.commonPlaintextPassword);
 
     assertDoesNotThrow(() -> {
       DBOperations cloudOps = new DBOperations(this.cloudDb);
@@ -267,7 +306,8 @@ class LoginUserTest {
   @Test
   void shouldHandleDbConflict() {
     UserInfo u3 = this.createdMockUsers.get(2);
-    LoginUser auth = new LoginUser(this.localDb, this.cloudDb, u3.username, this.commonPlaintextPassword);
+    LoginUser auth = new LoginUser(this.localDb, this.cloudDb, u3.username,
+        this.commonPlaintextPassword);
 
     assertDoesNotThrow(() -> {
       DBOperations localOps = new DBOperations(this.localDb);

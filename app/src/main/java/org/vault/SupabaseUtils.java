@@ -11,14 +11,27 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.backend.ProdEnvVars;
+
 public class SupabaseUtils {
-  private static final String SUPABASE_URL = "https://nkonqvgfxvhiefhpnrmg.supabase.co/";
-  private static final String SUPABASE_API_KEY = System.getenv("SUPABASE_API_KEY");
-  private static final String BUCKET_NAME = "vaults";
+  private static String SUPABASE_URL;
+  private static String SUPABASE_API_KEY;
+  private static String BUCKET_NAME;
 
   private static final HttpClient client = HttpClient.newHttpClient();
 
-  public static boolean uploadVault(Path localFile, String remotePath) {
+  public SupabaseUtils() {
+    if (SUPABASE_URL != null) {
+      return;
+    }
+
+    ProdEnvVars dotenv = new ProdEnvVars();
+    SUPABASE_URL = dotenv.get("SUPABASE_URL");
+    SUPABASE_API_KEY = dotenv.get("SUPABASE_API_KEY");
+    BUCKET_NAME = dotenv.get("BUCKET_NAME");
+  }
+
+  public boolean uploadVault(Path localFile, String remotePath) {
     try {
       String uploadUrl = String.format(
           "%sstorage/v1/object/%s/%s",
@@ -37,7 +50,7 @@ public class SupabaseUtils {
       int code = res.statusCode();
 
       if (code / 100 == 2) {
-        System.out.println("[Supabase.uploadVault] Success: " + res.body());
+        // System.out.println("[Supabase.uploadVault] Success: " + res.body());
         return true;
       } else {
         System.err.println("[Supabase.uploadVault] Failed [" + code + "]: " + res.body());
@@ -50,7 +63,7 @@ public class SupabaseUtils {
     }
   }
 
-  public static boolean downloadVault(String remotePath, Path localDest) {
+  public boolean downloadVault(String remotePath, Path localDest) {
     try {
       Path parent = localDest.getParent();
       if (parent != null) {
@@ -76,7 +89,8 @@ public class SupabaseUtils {
       int code = res.statusCode();
 
       if (code / 100 == 2) {
-        System.out.println("[Supabase.downloadVault] Success: wrote to " + localDest);
+        // System.out.println("[Supabase.downloadVault] Success: wrote to " +
+        // localDest);
         return true;
       } else {
         System.err.println("[Supabase.downloadVault] Failed [" + code + "]" + res.body());
