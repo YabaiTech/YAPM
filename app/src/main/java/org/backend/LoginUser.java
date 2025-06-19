@@ -164,6 +164,12 @@ public class LoginUser {
               "[LoginUser.login] Failed to merge the cloud and local database files");
         }
 
+        status = vm.closeDB();
+        if (status != VaultStatus.DBCloseSuccess) {
+          return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+              "[LoginUser.login] Failed to merge the cloud and local database files");
+        }
+
         dbToMerge.delete();
         boolean isOk = supaUtils.uploadVault(Path.of(dbPath), new File(dbPath).getName());
         if (!isOk) {
@@ -271,5 +277,73 @@ public class LoginUser {
 
   public String getPlaintextPassword() {
     return this.plaintextPassword;
+  }
+
+  public BackendError sync() {
+
+    if (this.fetchedUser == null) {
+      return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn, "[LoginUser.logout] User isn't logged in");
+    }
+
+    String localDbPath = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
+    String cloudDbPath = localDbPath.concat("_for_merging");
+
+    SupabaseUtils supaUtils = new SupabaseUtils();
+    boolean isOk = supaUtils.downloadVault(new File(localDbPath).getName(), Path.of(cloudDbPath));
+    if (!isOk) {
+      return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
+          "[LoginUser.login] Failed to download DB file from the cloud");
+    }
+
+    // merge DBs
+    File dbToMerge = new File(cloudDbPath);
+
+    try (VaultManager vm = new VaultManager(localDbPath, this.plaintextPassword);
+        VaultManager otherVm = new VaultManager(cloudDbPath, this.plaintextPassword);) {
+
+      VaultStatus status = vm.merge(otherVm);
+      if (status != VaultStatus.DBMergeSuccess) {
+        return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+            "[LoginUser.login] Failed to merge the cloud and local database files");
+      }
+
+      status = vm.closeDB();
+      if (status != VaultStatus.DBCloseSuccess) {
+        return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+            "[LoginUser.login] Failed to close the local vault after successful merging");
+      }
+      status = otherVm.closeDB();
+      if (status != VaultStatus.DBCloseSuccess) {
+        return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
+            "[LoginUser.login] Failed to close the cloud vault after successful merging");
+      }
+
+      dbToMerge.delete();
+      isOk = supaUtils.uploadVault(Path.of(localDbPath), new File(localDbPath).getName());
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
+            "[LoginUser.login] Failed to upload the merged DB file to the cloud");
+      }
+    }
+
+    return null;
+  }
+
+  public BackendError logout() {
+    BackendError err = sync();
+    if (err != null) {
+      return err;
+    }
+
+    // attempt to update the last logged in time (failing isn't a fatal error)
+    try {
+      this.localDbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
+      this.cloudDbOps.updateLastLoginTime(this.username, System.currentTimeMillis());
+    } catch (Exception e) {
+      // it's ok even if it fails to update. Just let it know in the logs
+      System.err.println("[LoginUser.login] Failed to update the last login time: " + e);
+    }
+
+    return null;
   }
 }
