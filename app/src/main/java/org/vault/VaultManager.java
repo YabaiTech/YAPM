@@ -1,5 +1,8 @@
 package org.vault;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -7,7 +10,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public class VaultManager implements AutoCloseable {
   private final String JDBC_PREFIX = "jdbc:sqlite:";
@@ -33,12 +40,16 @@ public class VaultManager implements AutoCloseable {
           "  verification TEXT NOT NULL" +
           ");");
       statement.executeUpdate("CREATE TABLE IF NOT EXISTS entries (" +
-          "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+          "  id TEXT PRIMARY KEY," +
           "  url TEXT NOT NULL," +
           "  username TEXT NOT NULL," +
           "  password TEXT NOT NULL," +
           "  iv TEXT NOT NULL," +
           "  timestamp INTEGER NOT NULL" +
+          ");");
+      statement.executeUpdate("CREATE TABLE IF NOT EXISTS deleted (" +
+          "  id TEXT PRIMARY KEY," +
+          "  deleted_at INTEGER NOT NULL" +
           ");");
       statement.executeUpdate("DELETE FROM metadata;");
 
@@ -89,13 +100,16 @@ public class VaultManager implements AutoCloseable {
       return VaultStatus.DBOpenVaultFailure;
     }
 
+    String saltB64 = Base64.getEncoder().encodeToString(salt);
     try (PreparedStatement preparedStatement = this.connection
-        .prepareStatement("SELECT id, url, username, password, iv FROM entries")) {
-      String saltB64 = Base64.getEncoder().encodeToString(salt);
+        .prepareStatement("SELECT e.id, e.url, e.username, e.password, e.iv " +
+            " FROM entries e " +
+            " LEFT JOIN deleted d ON e.id = d.id " +
+            " WHERE d.id IS NULL;")) {
       ResultSet resultSet = preparedStatement.executeQuery();
 
       while (resultSet.next()) {
-        int id = resultSet.getInt("id");
+        String id = resultSet.getString("id");
         String urlField = resultSet.getString("url");
         String usernameField = resultSet.getString("username");
         String passwdField = resultSet.getString("password");
@@ -134,8 +148,11 @@ public class VaultManager implements AutoCloseable {
     }
 
     byte[] salt;
+    String id;
     try {
       salt = verifyMasterPasswd(this.masterPasswd);
+      id = computeId(urlField, usernameField);
+
       if (salt == null) {
         return VaultStatus.DBAddEntryFailureException;
       }
@@ -171,12 +188,14 @@ public class VaultManager implements AutoCloseable {
     String ivB64 = encryptedUrl.getIV();
 
     try (PreparedStatement preparedStatement = this.connection
-        .prepareStatement("INSERT INTO entries(url, username, password, iv, timestamp) VALUES(?,?,?,?,?)")) {
-      preparedStatement.setString(1, cipherUrl);
-      preparedStatement.setString(2, cipherUsername);
-      preparedStatement.setString(3, cipherPasswd);
-      preparedStatement.setString(4, ivB64);
-      preparedStatement.setLong(5, System.currentTimeMillis());
+        .prepareStatement(
+            "INSERT OR REPLACE INTO entries(id, url, username, password, iv, timestamp) VALUES(?,?,?,?,?,?)")) {
+      preparedStatement.setString(1, id);
+      preparedStatement.setString(2, cipherUrl);
+      preparedStatement.setString(3, cipherUsername);
+      preparedStatement.setString(4, cipherPasswd);
+      preparedStatement.setString(5, ivB64);
+      preparedStatement.setLong(6, System.currentTimeMillis());
 
       preparedStatement.executeUpdate();
       this.connection.commit();
@@ -189,7 +208,7 @@ public class VaultManager implements AutoCloseable {
     }
   }
 
-  public VaultStatus deleteEntry(int entryID) {
+  public VaultStatus deleteEntry(String entryID) {
     try {
       byte[] salt = verifyMasterPasswd(this.masterPasswd);
       if (salt == null) {
@@ -209,11 +228,20 @@ public class VaultManager implements AutoCloseable {
       return VaultStatus.DBDeleteEntryFailureException;
     }
 
-    try (PreparedStatement preparedStatement = connection.prepareStatement("DELETE FROM entries WHERE id = ?")) {
-      preparedStatement.setInt(1, entryID);
-      int affected = preparedStatement.executeUpdate();
-      if (affected == 0) {
-        return VaultStatus.DBDeleteEntryFailureInvalidID;
+    try {
+      try (PreparedStatement preparedStatement = this.connection.prepareStatement("DELETE FROM entries WHERE id = ?")) {
+        preparedStatement.setString(1, entryID);
+        int affected = preparedStatement.executeUpdate();
+        if (affected == 0) {
+          return VaultStatus.DBDeleteEntryFailureInvalidID;
+        }
+      }
+      try (PreparedStatement preparedStatement = this.connection
+          .prepareStatement("INSERT OR REPLACE INTO deleted(id,deleted_at) VALUES(?,?)")) {
+        preparedStatement.setString(1, entryID);
+        preparedStatement.setLong(2, System.currentTimeMillis());
+
+        preparedStatement.executeUpdate();
       }
 
       this.connection.commit();
@@ -225,14 +253,17 @@ public class VaultManager implements AutoCloseable {
     }
   }
 
-  public VaultStatus editEntry(int entryID, String newUrl, String newUsername, String newPasswd) {
+  public VaultStatus editEntry(String entryID, String newUrl, String newUsername, String newPasswd) {
     if (newUrl.isEmpty() || newUsername.isEmpty() || newPasswd.isEmpty()) {
       return VaultStatus.DBEditEntryFailureEmptyParameter;
     }
 
     byte[] salt;
+    String id;
     try {
       salt = verifyMasterPasswd(this.masterPasswd);
+      id = computeId(newUrl, newUsername);
+
       if (salt == null) {
         return VaultStatus.DBEditEntryFailureException;
       }
@@ -267,21 +298,40 @@ public class VaultManager implements AutoCloseable {
     String cipherPasswd = encryptedPasswd.getCipherText();
     String ivB64 = encryptedUrl.getIV();
 
-    try (PreparedStatement ps = connection.prepareStatement(
-        "UPDATE entries " +
-            "SET url = ?, username = ?, password = ?, iv = ?, timestamp = ? " +
-            "WHERE id = ?")) {
+    try {
+      try (PreparedStatement ps = this.connection.prepareStatement(
+          "DELETE FROM entries WHERE id = ?")) {
+        ps.setString(1, entryID);
 
-      ps.setString(1, cipherUrl);
-      ps.setString(2, cipherUsername);
-      ps.setString(3, cipherPasswd);
-      ps.setString(4, ivB64);
-      ps.setLong(5, System.currentTimeMillis());
-      ps.setInt(6, entryID);
+        int affected = ps.executeUpdate();
+        if (affected == 0) {
+          return VaultStatus.DBEditEntryFailureInvalidID;
+        }
+      }
 
-      int affected = ps.executeUpdate();
-      if (affected == 0) {
-        return VaultStatus.DBEditEntryFailureInvalidID;
+      try (PreparedStatement ps = this.connection.prepareStatement(
+          "INSERT OR REPLACE INTO deleted(id,deleted_at) VALUES(?,?)")) {
+        ps.setString(1, entryID);
+        ps.setLong(2, System.currentTimeMillis());
+        ps.executeUpdate();
+      }
+
+      try (PreparedStatement ps = this.connection.prepareStatement("DELETE FROM deleted WHERE id = ?")) {
+        ps.setString(1, id);
+        ps.executeUpdate();
+      }
+
+      try (PreparedStatement ps = connection
+          .prepareStatement("INSERT INTO entries(id,url,username,password,iv,timestamp) VALUES(?,?,?,?,?,?)")) {
+
+        ps.setString(1, id);
+        ps.setString(2, cipherUrl);
+        ps.setString(3, cipherUsername);
+        ps.setString(4, cipherPasswd);
+        ps.setString(5, ivB64);
+        ps.setLong(6, System.currentTimeMillis());
+
+        ps.executeUpdate();
       }
 
       this.connection.commit();
@@ -370,87 +420,116 @@ public class VaultManager implements AutoCloseable {
       return VaultStatus.DBMergeFailureException;
     }
 
+    Set<String> allIds = new HashSet<>();
     try (
-        PreparedStatement psOther = other.connection
-            .prepareStatement("SELECT id, url, username, password, iv, timestamp FROM entries");
-        ResultSet rsOther = psOther.executeQuery()) {
-      String lookupSql = "SELECT timestamp FROM entries WHERE id = ?";
-      String insertSql = "INSERT INTO entries(url, username, password, iv, timestamp) VALUES(?,?,?,?,?)";
-      String updateSql = "UPDATE entries " +
-          "SET url = ?, username = ?, password = ?, iv = ?, timestamp = ? " +
-          "WHERE id = ?";
+        Statement a = this.connection.createStatement();
+        ResultSet ra1 = a.executeQuery("SELECT id FROM entries");
+        ResultSet ra2 = a.executeQuery("SELECT id FROM deleted");
+        Statement b = other.connection.createStatement();
+        ResultSet rb1 = b.executeQuery("SELECT id FROM entries");
+        ResultSet rb2 = b.executeQuery("SELECT id FROM deleted")) {
+      while (ra1.next())
+        allIds.add(ra1.getString("id"));
+      while (ra2.next())
+        allIds.add(ra2.getString("id"));
+      while (rb1.next())
+        allIds.add(rb1.getString("id"));
+      while (rb2.next())
+        allIds.add(rb2.getString("id"));
+    } catch (SQLException e) {
+      e.printStackTrace();
+      return VaultStatus.DBMergeFailureException;
+    }
 
-      try (PreparedStatement psLookup = this.connection.prepareStatement(lookupSql);
-          PreparedStatement psInsert = this.connection.prepareStatement(insertSql);
-          PreparedStatement psUpdate = this.connection.prepareStatement(updateSql)) {
-        while (rsOther.next()) {
-          int otherId = rsOther.getInt("id");
-          String otherUrl = rsOther.getString("url");
-          String otherUsername = rsOther.getString("username");
-          String otherPasswd = rsOther.getString("password");
-          String otherIvB64 = rsOther.getString("iv");
-          long otherTimestamp = rsOther.getLong("timestamp");
-          String otherSaltB64 = Base64.getEncoder().encodeToString(otherSalt);
+    try {
+      PreparedStatement lookupEntryA = connection.prepareStatement(
+          "SELECT url,username,password,iv,timestamp FROM entries WHERE id=?");
+      PreparedStatement lookupDelA = connection.prepareStatement(
+          "SELECT deleted_at FROM deleted WHERE id=?");
+      PreparedStatement deleteLocal = connection.prepareStatement(
+          "DELETE FROM entries WHERE id=?");
+      PreparedStatement tombstoneLocal = connection.prepareStatement(
+          "INSERT OR REPLACE INTO deleted(id,deleted_at) VALUES(?,?)");
+      PreparedStatement upsertLocal = connection.prepareStatement(
+          "INSERT OR REPLACE INTO entries(id,url,username,password,iv,timestamp) VALUES(?,?,?,?,?,?)");
 
-          EncryptedData otherUrlData = new EncryptedData(otherUrl, otherIvB64, otherSaltB64);
-          EncryptedData otherUsernameData = new EncryptedData(otherUsername, otherIvB64, otherSaltB64);
-          EncryptedData otherPasswdData = new EncryptedData(otherPasswd, otherIvB64, otherSaltB64);
-          String plainUrl, plainUsername, plainPasswd;
+      PreparedStatement lookupEntryB = other.connection.prepareStatement(
+          "SELECT url,username,password,iv,timestamp FROM entries WHERE id=?");
+      PreparedStatement lookupDelB = other.connection.prepareStatement(
+          "SELECT deleted_at FROM deleted WHERE id=?");
 
-          try {
-            plainUrl = CryptoUtils.decrypt(otherUrlData, other.masterPasswd);
-            plainUsername = CryptoUtils.decrypt(otherUsernameData, other.masterPasswd);
-            plainPasswd = CryptoUtils.decrypt(otherPasswdData, other.masterPasswd);
-          } catch (Exception e) {
-            System.out.println("[VaultManager.merge] ERROR: ");
-            e.printStackTrace();
-            return VaultStatus.DBMergeFailureException;
+      for (String id : allIds) {
+        Long tsEA = null, tsDA = null, tsEB = null, tsDB = null;
+        String urlA = null, userA = null, passA = null, ivA = null;
+        String urlB = null, userB = null, passB = null, ivB = null;
+
+        lookupEntryA.setString(1, id);
+        try (ResultSet r = lookupEntryA.executeQuery()) {
+          if (r.next()) {
+            tsEA = r.getLong("timestamp");
+            urlA = r.getString("url");
+            userA = r.getString("username");
+            passA = r.getString("password");
+            ivA = r.getString("iv");
           }
+        }
+        lookupDelA.setString(1, id);
+        try (ResultSet r = lookupDelA.executeQuery()) {
+          if (r.next())
+            tsDA = r.getLong("deleted_at");
+        }
 
-          EncryptedData newUrlData, newUsernameData, newPasswdData;
-          byte[] newIvBytes;
-          try {
-            newUrlData = CryptoUtils.encrypt(plainUrl, this.masterPasswd, salt);
-
-            newIvBytes = Base64.getDecoder().decode(newUrlData.getIV());
-            newUsernameData = CryptoUtils.encrypt(plainUsername, this.masterPasswd, salt, newIvBytes);
-            newPasswdData = CryptoUtils.encrypt(plainPasswd, this.masterPasswd, salt, newIvBytes);
-          } catch (Exception e) {
-            System.out.println("[VaultManager.merge] ERROR: ");
-            e.printStackTrace();
-            return VaultStatus.DBMergeFailureException;
+        lookupEntryB.setString(1, id);
+        try (ResultSet r = lookupEntryB.executeQuery()) {
+          if (r.next()) {
+            tsEB = r.getLong("timestamp");
+            urlB = r.getString("url");
+            userB = r.getString("username");
+            passB = r.getString("password");
+            ivB = r.getString("iv");
           }
-          String newUrlCipherB64 = newUrlData.getCipherText();
-          String newUsernameCipherB64 = newUsernameData.getCipherText();
-          String newPasswdCipherB64 = newPasswdData.getCipherText();
+        }
+        lookupDelB.setString(1, id);
+        try (ResultSet r = lookupDelB.executeQuery()) {
+          if (r.next())
+            tsDB = r.getLong("deleted_at");
+        }
 
-          psLookup.setInt(1, otherId);
-          try (ResultSet rsSelf = psLookup.executeQuery()) {
-            if (rsSelf.next()) {
-              long selfTimestamp = rsSelf.getLong("timestamp");
-              if (otherTimestamp > selfTimestamp) {
-                psUpdate.setString(1, newUrlCipherB64);
-                psUpdate.setString(2, newUsernameCipherB64);
-                psUpdate.setString(3, newPasswdCipherB64);
-                psUpdate.setString(4, Base64.getEncoder().encodeToString(newIvBytes));
-                psUpdate.setLong(5, otherTimestamp);
-                psUpdate.setInt(6, otherId);
-                psUpdate.executeUpdate();
-              }
-            } else {
-              psInsert.setString(1, newUrlCipherB64);
-              psInsert.setString(2, newUsernameCipherB64);
-              psInsert.setString(3, newPasswdCipherB64);
-              psInsert.setString(4, Base64.getEncoder().encodeToString(newIvBytes));
-              psInsert.setLong(5, otherTimestamp);
-              psInsert.executeUpdate();
-            }
-          }
+        long maxDel = Math.max(tsDA == null ? 0L : tsDA,
+            tsDB == null ? 0L : tsDB);
+        long maxEnt = Math.max(tsEA == null ? 0L : tsEA,
+            tsEB == null ? 0L : tsEB);
+
+        if (maxDel > maxEnt) {
+          deleteLocal.setString(1, id);
+
+          deleteLocal.executeUpdate();
+
+          tombstoneLocal.setString(1, id);
+          tombstoneLocal.setLong(2, maxDel);
+
+          tombstoneLocal.executeUpdate();
+        } else {
+          boolean pickA = tsEA != null && (tsEB == null || tsEA >= tsEB);
+          String srcUrl = pickA ? urlA : urlB;
+          String srcUser = pickA ? userA : userB;
+          String srcPass = pickA ? passA : passB;
+          String srcIv = pickA ? ivA : ivB;
+          long srcTs = pickA ? tsEA : tsEB;
+
+          upsertLocal.setString(1, id);
+          upsertLocal.setString(2, srcUrl);
+          upsertLocal.setString(3, srcUser);
+          upsertLocal.setString(4, srcPass);
+          upsertLocal.setString(5, srcIv);
+          upsertLocal.setLong(6, srcTs);
+          upsertLocal.executeUpdate();
         }
       }
 
       this.connection.commit();
       return VaultStatus.DBMergeSuccess;
+
     } catch (SQLException e) {
       System.out.println("[VaultManager.merge] ERROR: ");
       e.printStackTrace();
@@ -481,5 +560,12 @@ public class VaultManager implements AutoCloseable {
       e.printStackTrace();
       return VaultStatus.DBCloseFailure;
     }
+  }
+
+  public static String computeId(String url, String username) throws NoSuchAlgorithmException {
+    MessageDigest md = MessageDigest.getInstance("SHA-256");
+    md.update((url + ":" + username).getBytes(StandardCharsets.UTF_8));
+
+    return Base64.getEncoder().encodeToString(md.digest());
   }
 }
