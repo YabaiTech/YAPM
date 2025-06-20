@@ -129,7 +129,7 @@ public class VaultManager implements AutoCloseable {
         Entry entry = new Entry(id, plainUrl, plainUsername, plainPasswd);
         entries.add(entry);
       }
-      System.out.println("\nopened " + this.dbPath + ":");
+      System.out.println("\nOPENED " + this.dbPath + ":\n");
       for (Entry e : entries) {
         e.display();
       }
@@ -467,7 +467,7 @@ public class VaultManager implements AutoCloseable {
       ArrayList<Entry> entries = new ArrayList<>();
       nv.openVault(entries);
 
-      System.out.println("\nmerged db " + nv.dbPath + ":");
+      System.out.println("\nMERGED " + v1.dbPath + " + " + v2.dbPath + " = " + nv.dbPath + ":\n");
       for (Entry e : entries) {
         e.display();
       }
