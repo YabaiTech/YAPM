@@ -126,7 +126,12 @@ public class VaultManager implements AutoCloseable {
           return VaultStatus.DBOpenVaultFailure;
         }
 
-        entries.add(new Entry(id, plainUrl, plainUsername, plainPasswd));
+        Entry entry = new Entry(id, plainUrl, plainUsername, plainPasswd);
+        entries.add(entry);
+      }
+      System.out.println("\nopened " + this.dbPath + ":");
+      for (Entry e : entries) {
+        e.display();
       }
 
       this.connection.commit();
@@ -459,6 +464,13 @@ public class VaultManager implements AutoCloseable {
       nv.connection.commit();
       nv.connection.createStatement().execute("DETACH DATABASE v1;");
       nv.connection.createStatement().execute("DETACH DATABASE v2;");
+      ArrayList<Entry> entries = new ArrayList<>();
+      nv.openVault(entries);
+
+      System.out.println("\nmerged db " + nv.dbPath + ":");
+      for (Entry e : entries) {
+        e.display();
+      }
       nv.close();
 
       return VaultStatus.DBMergeSuccess;

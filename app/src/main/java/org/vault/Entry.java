@@ -28,4 +28,11 @@ public class Entry {
   public String getPasswd() {
     return this.passwd;
   }
+
+  public void display() {
+    System.out.println("ID: " + this.id);
+    System.out.println("URL: " + this.url);
+    System.out.println("Username: " + this.username);
+    System.out.println("Password: " + this.passwd);
+  }
 }
