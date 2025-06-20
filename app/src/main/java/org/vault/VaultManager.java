@@ -10,11 +10,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
 
 public class VaultManager implements AutoCloseable {
   private final String JDBC_PREFIX = "jdbc:sqlite:";
@@ -187,9 +183,8 @@ public class VaultManager implements AutoCloseable {
     String cipherPasswd = encryptedPasswd.getCipherText();
     String ivB64 = encryptedUrl.getIV();
 
-    try (PreparedStatement preparedStatement = this.connection
-        .prepareStatement(
-            "INSERT OR REPLACE INTO entries(id, url, username, password, iv, timestamp) VALUES(?,?,?,?,?,?)")) {
+    try (PreparedStatement preparedStatement = this.connection.prepareStatement(
+        "INSERT OR REPLACE INTO entries(id, url, username, password, iv, timestamp) VALUES(?,?,?,?,?,?)")) {
       preparedStatement.setString(1, id);
       preparedStatement.setString(2, cipherUrl);
       preparedStatement.setString(3, cipherUsername);
@@ -343,6 +338,137 @@ public class VaultManager implements AutoCloseable {
     }
   }
 
+  public static VaultStatus merge(String newDbPath, VaultManager v1, VaultManager v2) {
+    if (!v1.masterPasswd.equals(v2.masterPasswd)) {
+      return VaultStatus.DBMergeDifferentMasterPasswd;
+    }
+    if (v1.connection == null) {
+      if (v1.connectToDB() != VaultStatus.DBConnectionSuccess) {
+        return VaultStatus.DBConnectionFailure;
+      }
+    }
+    if (v2.connection == null) {
+      if (v2.connectToDB() != VaultStatus.DBConnectionSuccess) {
+        return VaultStatus.DBParameterVaultConnectionFailure;
+      }
+    }
+
+    byte[] salt1, salt2;
+    try {
+      salt1 = v1.verifyMasterPasswd(v1.masterPasswd);
+      salt2 = v2.verifyMasterPasswd(v2.masterPasswd);
+
+      if (salt1 == null || salt2 == null) {
+        return VaultStatus.DBMergeFailureException;
+      }
+    } catch (IllegalStateException e) {
+      System.out.println("[VaultManager.merge] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBBadVerificationFormat;
+    } catch (SecurityException e) {
+      System.out.println("[VaultManager.merge] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBWrongMasterPasswd;
+    } catch (Exception e) {
+      System.out.println("[VaultManager.merge] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBMergeFailureException;
+    }
+
+    try {
+      VaultManager nv = new VaultManager(newDbPath, v1.masterPasswd);
+      nv.connectToDB();
+      try (Statement stmt = nv.connection.createStatement()) {
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS metadata (" +
+            "  salt TEXT NOT NULL," +
+            "  verification TEXT NOT NULL" +
+            ");");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS entries (" +
+            "  id TEXT PRIMARY KEY," +
+            "  url TEXT NOT NULL," +
+            "  username TEXT NOT NULL," +
+            "  password TEXT NOT NULL," +
+            "  iv TEXT NOT NULL," +
+            "  timestamp INTEGER NOT NULL" +
+            ");");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS deleted (" +
+            "  id TEXT PRIMARY KEY," +
+            "  deleted_at INTEGER NOT NULL" +
+            ");");
+
+        stmt.executeUpdate("DELETE FROM metadata;");
+      }
+
+      try (ResultSet rs = v1.connection.createStatement().executeQuery(
+          "SELECT salt, verification FROM metadata LIMIT 1");
+          PreparedStatement ps = nv.connection.prepareStatement(
+              "INSERT INTO metadata(salt,verification) VALUES(?,?)")) {
+        if (!rs.next()) {
+          return VaultStatus.DBBadVerificationFormat;
+        }
+        ps.setString(1, rs.getString("salt"));
+        ps.setString(2, rs.getString("verification"));
+
+        ps.executeUpdate();
+      }
+
+      // load all unique IDs from both v1 and v2 and both both entries and deleted
+      // tables
+      PreparedStatement allIds = nv.connection.prepareStatement(
+          "SELECT id FROM entries UNION SELECT id FROM deleted");
+      nv.connection.createStatement().execute("ATTACH DATABASE '" + v1.dbPath + "' AS v1;");
+      nv.connection.createStatement().execute("ATTACH DATABASE '" + v2.dbPath + "' AS v2;");
+
+      ResultSet rsAll = nv.connection.createStatement().executeQuery(
+          "SELECT id FROM v1.entries UNION SELECT id FROM v2.entries " +
+              "UNION SELECT id FROM v1.deleted UNION SELECT id FROM v2.deleted");
+
+      while (rsAll.next()) {
+        String id = rsAll.getString("id");
+        Record rec = new Record();
+        // load local and remote entries and deletes
+        Record r1 = rec.loadRecord(nv.connection, "v1", id);
+        Record r2 = rec.loadRecord(nv.connection, "v2", id);
+
+        // decide latest state
+        // if both are deleted, pick max deletedAt
+        long finalDeleted = -1;
+        if (r1.deletedAt != null || r2.deletedAt != null) {
+          finalDeleted = Math.max(
+              r1.deletedAt == null ? -1 : r1.deletedAt,
+              r2.deletedAt == null ? -1 : r2.deletedAt);
+        }
+
+        // find latest entry ts
+        long latestEntryTs = Math.max(r1.timestamp, r2.timestamp);
+
+        // apply tombstone wins if delete is newer than entry
+        if (finalDeleted > latestEntryTs) {
+          // write tombstone only and delete the entry from new vault
+          rec.upsertDeleted(nv.connection, id, finalDeleted);
+          rec.deleteEntryRow(nv.connection, id);
+        } else {
+          // pick newer record to write and remove the entry from table deleted
+          Record chosen = (r1.timestamp >= r2.timestamp) ? r1 : r2;
+
+          rec.upsertEntry(nv.connection, chosen);
+          rec.deleteDeletedRow(nv.connection, id);
+        }
+      }
+
+      nv.connection.commit();
+      nv.connection.createStatement().execute("DETACH DATABASE v1;");
+      nv.connection.createStatement().execute("DETACH DATABASE v2;");
+      nv.close();
+
+      return VaultStatus.DBMergeSuccess;
+    } catch (SQLException e) {
+      System.out.println("[VaultManager.merge] ERROR: ");
+      e.printStackTrace();
+      return VaultStatus.DBMergeFailureException;
+    }
+  }
+
   private byte[] verifyMasterPasswd(String masterPasswd) throws Exception {
     String saltB64, verPayload;
 
@@ -381,160 +507,6 @@ public class VaultManager implements AutoCloseable {
     }
 
     return Base64.getDecoder().decode(saltB64);
-  }
-
-  public VaultStatus merge(VaultManager other) {
-    if (!this.masterPasswd.equals(other.masterPasswd)) {
-      return VaultStatus.DBMergeDifferentMasterPasswd;
-    }
-    if (this.connection == null) {
-      if (this.connectToDB() != VaultStatus.DBConnectionSuccess) {
-        return VaultStatus.DBConnectionFailure;
-      }
-    }
-    if (other.connection == null) {
-      if (other.connectToDB() != VaultStatus.DBConnectionSuccess) {
-        return VaultStatus.DBParameterVaultConnectionFailure;
-      }
-    }
-
-    byte[] salt, otherSalt;
-    try {
-      salt = this.verifyMasterPasswd(this.masterPasswd);
-      otherSalt = other.verifyMasterPasswd(other.masterPasswd);
-
-      if (salt == null || otherSalt == null) {
-        return VaultStatus.DBMergeFailureException;
-      }
-    } catch (IllegalStateException e) {
-      System.out.println("[VaultManager.merge] ERROR: ");
-      e.printStackTrace();
-      return VaultStatus.DBBadVerificationFormat;
-    } catch (SecurityException e) {
-      System.out.println("[VaultManager.merge] ERROR: ");
-      e.printStackTrace();
-      return VaultStatus.DBWrongMasterPasswd;
-    } catch (Exception e) {
-      System.out.println("[VaultManager.merge] ERROR: ");
-      e.printStackTrace();
-      return VaultStatus.DBMergeFailureException;
-    }
-
-    Set<String> allIds = new HashSet<>();
-    try (
-        Statement a = this.connection.createStatement();
-        ResultSet ra1 = a.executeQuery("SELECT id FROM entries");
-        ResultSet ra2 = a.executeQuery("SELECT id FROM deleted");
-        Statement b = other.connection.createStatement();
-        ResultSet rb1 = b.executeQuery("SELECT id FROM entries");
-        ResultSet rb2 = b.executeQuery("SELECT id FROM deleted")) {
-      while (ra1.next())
-        allIds.add(ra1.getString("id"));
-      while (ra2.next())
-        allIds.add(ra2.getString("id"));
-      while (rb1.next())
-        allIds.add(rb1.getString("id"));
-      while (rb2.next())
-        allIds.add(rb2.getString("id"));
-    } catch (SQLException e) {
-      e.printStackTrace();
-      return VaultStatus.DBMergeFailureException;
-    }
-
-    try {
-      PreparedStatement lookupEntryA = connection.prepareStatement(
-          "SELECT url,username,password,iv,timestamp FROM entries WHERE id=?");
-      PreparedStatement lookupDelA = connection.prepareStatement(
-          "SELECT deleted_at FROM deleted WHERE id=?");
-      PreparedStatement deleteLocal = connection.prepareStatement(
-          "DELETE FROM entries WHERE id=?");
-      PreparedStatement tombstoneLocal = connection.prepareStatement(
-          "INSERT OR REPLACE INTO deleted(id,deleted_at) VALUES(?,?)");
-      PreparedStatement upsertLocal = connection.prepareStatement(
-          "INSERT OR REPLACE INTO entries(id,url,username,password,iv,timestamp) VALUES(?,?,?,?,?,?)");
-
-      PreparedStatement lookupEntryB = other.connection.prepareStatement(
-          "SELECT url,username,password,iv,timestamp FROM entries WHERE id=?");
-      PreparedStatement lookupDelB = other.connection.prepareStatement(
-          "SELECT deleted_at FROM deleted WHERE id=?");
-
-      for (String id : allIds) {
-        Long tsEA = null, tsDA = null, tsEB = null, tsDB = null;
-        String urlA = null, userA = null, passA = null, ivA = null;
-        String urlB = null, userB = null, passB = null, ivB = null;
-
-        lookupEntryA.setString(1, id);
-        try (ResultSet r = lookupEntryA.executeQuery()) {
-          if (r.next()) {
-            tsEA = r.getLong("timestamp");
-            urlA = r.getString("url");
-            userA = r.getString("username");
-            passA = r.getString("password");
-            ivA = r.getString("iv");
-          }
-        }
-        lookupDelA.setString(1, id);
-        try (ResultSet r = lookupDelA.executeQuery()) {
-          if (r.next())
-            tsDA = r.getLong("deleted_at");
-        }
-
-        lookupEntryB.setString(1, id);
-        try (ResultSet r = lookupEntryB.executeQuery()) {
-          if (r.next()) {
-            tsEB = r.getLong("timestamp");
-            urlB = r.getString("url");
-            userB = r.getString("username");
-            passB = r.getString("password");
-            ivB = r.getString("iv");
-          }
-        }
-        lookupDelB.setString(1, id);
-        try (ResultSet r = lookupDelB.executeQuery()) {
-          if (r.next())
-            tsDB = r.getLong("deleted_at");
-        }
-
-        long maxDel = Math.max(tsDA == null ? 0L : tsDA,
-            tsDB == null ? 0L : tsDB);
-        long maxEnt = Math.max(tsEA == null ? 0L : tsEA,
-            tsEB == null ? 0L : tsEB);
-
-        if (maxDel > maxEnt) {
-          deleteLocal.setString(1, id);
-
-          deleteLocal.executeUpdate();
-
-          tombstoneLocal.setString(1, id);
-          tombstoneLocal.setLong(2, maxDel);
-
-          tombstoneLocal.executeUpdate();
-        } else {
-          boolean pickA = tsEA != null && (tsEB == null || tsEA >= tsEB);
-          String srcUrl = pickA ? urlA : urlB;
-          String srcUser = pickA ? userA : userB;
-          String srcPass = pickA ? passA : passB;
-          String srcIv = pickA ? ivA : ivB;
-          long srcTs = pickA ? tsEA : tsEB;
-
-          upsertLocal.setString(1, id);
-          upsertLocal.setString(2, srcUrl);
-          upsertLocal.setString(3, srcUser);
-          upsertLocal.setString(4, srcPass);
-          upsertLocal.setString(5, srcIv);
-          upsertLocal.setLong(6, srcTs);
-          upsertLocal.executeUpdate();
-        }
-      }
-
-      this.connection.commit();
-      return VaultStatus.DBMergeSuccess;
-
-    } catch (SQLException e) {
-      System.out.println("[VaultManager.merge] ERROR: ");
-      e.printStackTrace();
-      return VaultStatus.DBMergeFailureException;
-    }
   }
 
   public VaultStatus connectToDB() {

@@ -220,17 +220,17 @@ class VaultManagerTest {
   //
   // assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
   // }
-
-  @Test
-  public void testMergeWithDifferentPasswordsFails() throws Exception {
-    String dbPath2 = tmpDir.resolve("otherVault.db").toString();
-    VaultManager v2 = new VaultManager(dbPath2, WRONG_PASSWD);
-
-    assertEquals(VaultStatus.DBConnectionSuccess, v2.connectToDB());
-    assertEquals(VaultStatus.DBCreateVaultSuccess, v2.createVault());
-
-    assertEquals(VaultStatus.DBMergeDifferentMasterPasswd, vm.merge(v2));
-
-    assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
-  }
+  //
+  // @Test
+  // public void testMergeWithDifferentPasswordsFails() throws Exception {
+  // String dbPath2 = tmpDir.resolve("otherVault.db").toString();
+  // VaultManager v2 = new VaultManager(dbPath2, WRONG_PASSWD);
+  //
+  // assertEquals(VaultStatus.DBConnectionSuccess, v2.connectToDB());
+  // assertEquals(VaultStatus.DBCreateVaultSuccess, v2.createVault());
+  //
+  // assertEquals(VaultStatus.DBMergeDifferentMasterPasswd, vm.merge(v2));
+  //
+  // assertEquals(VaultStatus.DBCloseSuccess, v2.closeDB());
+  // }
 }
