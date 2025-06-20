@@ -12,7 +12,9 @@ import java.awt.font.TextAttribute;
 import java.util.Map;
 
 public class LoginPanel extends JPanel {
-    private final MainUI mainUI;
+    final MainUI mainUI;
+    final JTextField usernameEmailField;
+    final JPasswordField  passField;
 
     public LoginPanel(MainUI mainUI) {
         this.mainUI = mainUI;
@@ -53,7 +55,7 @@ public class LoginPanel extends JPanel {
         emailLabel.setFont(emailLabel.getFont().deriveFont(Font.PLAIN, 18f));
         emailLabel.setBorder(new EmptyBorder(0, 0, 5, 0));
 
-        JTextField usernameEmailField = new JTextField();
+        this.usernameEmailField = new JTextField();
         usernameEmailField.putClientProperty(FlatClientProperties.STYLE, "font: 18");
         usernameEmailField.setFont(usernameEmailField.getFont().deriveFont(18f));
         usernameEmailField.setPreferredSize(new Dimension(450, 40));
@@ -73,7 +75,7 @@ public class LoginPanel extends JPanel {
         passLabel.setFont(passLabel.getFont().deriveFont(Font.PLAIN, 18f));
         passLabel.setBorder(new EmptyBorder(0, 0, 5, 0));
 
-        JPasswordField passField = new JPasswordField();
+        this.passField = new JPasswordField();
         passField.putClientProperty(FlatClientProperties.STYLE, "font: 18");
         passField.setFont(passField.getFont().deriveFont(18f));
         passField.setPreferredSize(new Dimension(450, 40));
@@ -188,27 +190,30 @@ public class LoginPanel extends JPanel {
             CloudDbConnection cloudDbConnection = new CloudDbConnection();
             LoginUser loginUser = new LoginUser(dbConnection, cloudDbConnection, accountIdentifier, password);
 
-            BackendError loginErr = loginUser.login();
-            if (loginErr != null) {
-                showUserFriendlyError("Login Error", getLoginErrorMessage(loginErr));
-                return;
-            }
+            BackgroundLogin blWorker = new BackgroundLogin(this, loginUser);
+            blWorker.execute();
 
-            // Successful login
-            JOptionPane.showMessageDialog(
-                LoginPanel.this,
-                "<html><div style='width: 300px;'>" +
-                    "<h3 style='margin-top: 0;'>Login Successful!</h3>" +
-                    "<p>Welcome back to YAPM.</p>" +
-                    "</div></html>",
-                "Success",
-                JOptionPane.INFORMATION_MESSAGE
-            );
-
-            App.currentLoginUser = loginUser;
-            usernameEmailField.setText("");
-            passField.setText("");
-            mainUI.showPage("home");
+//            BackendError loginErr = loginUser.login();
+//            if (loginErr != null) {
+//                showUserFriendlyError("Login Error", getLoginErrorMessage(loginErr));
+//                return;
+//            }
+//
+//            // Successful login
+//            JOptionPane.showMessageDialog(
+//                LoginPanel.this,
+//                "<html><div style='width: 300px;'>" +
+//                    "<h3 style='margin-top: 0;'>Login Successful!</h3>" +
+//                    "<p>Welcome back to YAPM.</p>" +
+//                    "</div></html>",
+//                "Success",
+//                JOptionPane.INFORMATION_MESSAGE
+//            );
+//
+//            App.currentLoginUser = loginUser;
+//            this.usernameEmailField.setText("");
+//            this.passField.setText("");
+//            this.mainUI.showPage("home");
         });
 
         formPanel.add(loginButton);
