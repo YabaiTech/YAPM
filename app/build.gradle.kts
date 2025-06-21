@@ -52,6 +52,22 @@ tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
     testLogging {
+      events("failed", "skipped")
       showStandardStreams = true
     }
+}
+
+tasks.withType<AbstractTestTask> {
+    afterSuite(
+        KotlinClosure2({ desc: TestDescriptor, result: TestResult ->
+            // Only execute on the outermost suite
+            if (desc.parent == null) {
+                println("\n **** Result: ${result.resultType} ****")
+                println("  >    Tests: ${result.testCount}")
+                println("  >   Passed: ${result.successfulTestCount}")
+                println("  >   Failed: ${result.failedTestCount}")
+                println("  >  Skipped: ${result.skippedTestCount}")
+            }
+        })
+    )
 }
