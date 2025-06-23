@@ -192,28 +192,6 @@ public class LoginPanel extends JPanel {
 
             BackgroundLogin blWorker = new BackgroundLogin(this, loginUser);
             blWorker.execute();
-
-//            BackendError loginErr = loginUser.login();
-//            if (loginErr != null) {
-//                showUserFriendlyError("Login Error", getLoginErrorMessage(loginErr));
-//                return;
-//            }
-//
-//            // Successful login
-//            JOptionPane.showMessageDialog(
-//                LoginPanel.this,
-//                "<html><div style='width: 300px;'>" +
-//                    "<h3 style='margin-top: 0;'>Login Successful!</h3>" +
-//                    "<p>Welcome back to YAPM.</p>" +
-//                    "</div></html>",
-//                "Success",
-//                JOptionPane.INFORMATION_MESSAGE
-//            );
-//
-//            App.currentLoginUser = loginUser;
-//            this.usernameEmailField.setText("");
-//            this.passField.setText("");
-//            this.mainUI.showPage("home");
         });
 
         formPanel.add(loginButton);
