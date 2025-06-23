@@ -22,6 +22,9 @@ public class HomePanel extends JPanel {
     private final JTable table;
     private final ArrayList<Entry> credentials = new ArrayList<>();
 
+    // Added spinner overlay field
+    private final DarkLoadingOverlay overlay;
+
     public HomePanel(MainUI mainUI) {
         this.mainUI = mainUI;
         setLayout(new BorderLayout());
@@ -70,7 +73,26 @@ public class HomePanel extends JPanel {
         scrollPane.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         scrollPane.getViewport().setBackground(darkBg);
         centerWrapper.add(scrollPane, BorderLayout.CENTER);
-        add(centerWrapper, BorderLayout.CENTER);
+
+        // Initialize the spinner overlay and set invisible by default
+        overlay = new DarkLoadingOverlay();
+        overlay.setVisible(false);
+
+        // Create layered pane to hold centerWrapper and overlay
+        JLayeredPane layeredPane = new JLayeredPane();
+        layeredPane.setLayout(new OverlayLayout(layeredPane));
+        layeredPane.add(centerWrapper, JLayeredPane.DEFAULT_LAYER);
+        layeredPane.add(overlay, JLayeredPane.PALETTE_LAYER);
+
+        layeredPane.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                overlay.setBounds(0, 0, layeredPane.getWidth(), layeredPane.getHeight());
+            }
+        });
+
+        // Add layeredPane instead of centerWrapper directly
+        add(layeredPane, BorderLayout.CENTER);
 
         TableCellRenderer renderer = new CopyButtonCellRenderer();
         TableCellEditor editor = new CopyButtonCellEditor();
@@ -99,8 +121,9 @@ public class HomePanel extends JPanel {
             buttonPanel.add(btn);
         }
 
+        // Adjusted refreshButton action to show/hide spinner overlay (no modal dialog)
         refreshButton.addActionListener(e -> {
-            JDialog loadingDialog = createSpinnerDialog();
+            overlay.setVisible(true);
             SwingWorker<Void, Void> worker = new SwingWorker<>() {
                 @Override
                 protected Void doInBackground() {
@@ -110,11 +133,10 @@ public class HomePanel extends JPanel {
 
                 @Override
                 protected void done() {
-                    loadingDialog.dispose();
+                    overlay.setVisible(false);
                 }
             };
             worker.execute();
-            loadingDialog.setVisible(true);
         });
 
         logoutButton.addActionListener(e -> {
@@ -188,27 +210,5 @@ public class HomePanel extends JPanel {
             table.getColumnModel().getColumn(i).setCellRenderer(renderer);
             table.getColumnModel().getColumn(i).setCellEditor(editor);
         }
-    }
-
-    private JDialog createSpinnerDialog() {
-        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Refreshing", true);
-        JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout(10, 10));
-        panel.setBorder(new EmptyBorder(20, 20, 20, 20));
-        panel.setBackground(UIManager.getColor("Panel.background"));
-
-        JProgressBar spinner = new JProgressBar();
-        spinner.setIndeterminate(true);
-        spinner.setPreferredSize(new Dimension(200, 20));
-
-        JLabel label = new JLabel("Refreshing entries...");
-        label.setHorizontalAlignment(SwingConstants.CENTER);
-
-        panel.add(label, BorderLayout.NORTH);
-        panel.add(spinner, BorderLayout.CENTER);
-        dialog.getContentPane().add(panel);
-        dialog.pack();
-        dialog.setLocationRelativeTo(this);
-        return dialog;
     }
 }
