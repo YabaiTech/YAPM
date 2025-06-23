@@ -13,7 +13,6 @@ import java.util.Map;
 
 public class LoginPanel extends JPanel {
     private final MainUI mainUI;
-    private DarkLoadingOverlay overlay;
 
     public LoginPanel(MainUI mainUI) {
         this.mainUI = mainUI;
@@ -38,13 +37,6 @@ public class LoginPanel extends JPanel {
         JPanel centerWrapper = new JPanel(new GridBagLayout());
         centerWrapper.setBackground(darkBg);
 
-        overlay = new DarkLoadingOverlay();
-        overlay.setVisible(false);
-        overlay.setOpaque(false);
-        overlay.setAlignmentX(Component.CENTER_ALIGNMENT);
-        overlay.setAlignmentY(Component.CENTER_ALIGNMENT);
-        overlay.setPreferredSize(new Dimension(600, 700));
-
         JPanel formPanel = new JPanel();
         formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
         formPanel.setBackground(darkBg);
@@ -54,6 +46,7 @@ public class LoginPanel extends JPanel {
         formPanel.setMaximumSize(new Dimension(500, Integer.MAX_VALUE));
         formPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
+        // Username/Email Field
         JLabel emailLabel = new JLabel("Username/Email:");
         emailLabel.setForeground(labelColor);
         emailLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -67,11 +60,13 @@ public class LoginPanel extends JPanel {
         usernameEmailField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         usernameEmailField.setAlignmentX(LEFT_ALIGNMENT);
         usernameEmailField.setBorder(BorderFactory.createEmptyBorder());
+        usernameEmailField.setMargin(new Insets(0, 0, 0, 0));
 
         formPanel.add(emailLabel);
         formPanel.add(usernameEmailField);
         formPanel.add(Box.createVerticalStrut(10));
 
+        // Password Field
         JLabel passLabel = new JLabel("Password:");
         passLabel.setForeground(labelColor);
         passLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -85,22 +80,27 @@ public class LoginPanel extends JPanel {
         passField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         passField.setAlignmentX(LEFT_ALIGNMENT);
         passField.setBorder(BorderFactory.createEmptyBorder());
+        passField.setMargin(new Insets(0, 0, 0, 0));
 
         formPanel.add(passLabel);
         formPanel.add(passField);
         formPanel.add(Box.createVerticalStrut(20));
 
+        // Rules Link
         JLabel rulesLabel = new JLabel("View username and password rules");
         rulesLabel.setForeground(accentColor);
         rulesLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         rulesLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         rulesLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         rulesLabel.addMouseListener(new MouseAdapter() {
             Font originalFont = rulesLabel.getFont();
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                JOptionPane.showMessageDialog(LoginPanel.this, """
+                JOptionPane.showMessageDialog(
+                    LoginPanel.this,
+                    """
                     <html><div style='width: 300px;'>
                     <h3>Login Requirements</h3>
                     <p><b>Username/Email Rules:</b></p>
@@ -115,11 +115,15 @@ public class LoginPanel extends JPanel {
                         <li>Minimum 8 characters</li>
                     </ul>
                     </div></html>
-                    """, "Login Rules", JOptionPane.INFORMATION_MESSAGE);
+                    """,
+                    "Login Rules",
+                    JOptionPane.INFORMATION_MESSAGE
+                );
             }
 
             @Override
             public void mouseEntered(MouseEvent e) {
+                @SuppressWarnings("unchecked")
                 Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) originalFont.getAttributes();
                 attributes.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON);
                 rulesLabel.setFont(originalFont.deriveFont(attributes));
@@ -134,6 +138,7 @@ public class LoginPanel extends JPanel {
         formPanel.add(rulesLabel);
         formPanel.add(Box.createVerticalStrut(10));
 
+        // Login Button
         JButton loginButton = new JButton("Login");
         loginButton.setAlignmentX(LEFT_ALIGNMENT);
         loginButton.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
@@ -144,7 +149,7 @@ public class LoginPanel extends JPanel {
             String accountIdentifier = usernameEmailField.getText().trim();
             String password = new String(passField.getPassword());
 
-            // Validate input before starting background thread
+            // Input validation
             if (accountIdentifier.isEmpty()) {
                 showUserFriendlyError("Input Error", "Username/Email cannot be empty.");
                 usernameEmailField.requestFocus();
@@ -152,14 +157,15 @@ public class LoginPanel extends JPanel {
             }
 
             if (!accountIdentifier.contains("@") && !accountIdentifier.matches("^[a-zA-Z0-9]+$")) {
-                showUserFriendlyError("Input Error", "Username must be alphanumeric.");
+                showUserFriendlyError("Input Error",
+                    "Username must be alphanumeric (letters and digits only).");
                 usernameEmailField.requestFocus();
                 return;
             }
 
-            if (accountIdentifier.contains("@") &&
-                !accountIdentifier.matches("^[\\w.%+-]+@[\\w.-]+\\.[A-Za-z]{2,6}$")) {
-                showUserFriendlyError("Input Error", "Invalid email format.");
+            if (accountIdentifier.contains("@") && !accountIdentifier.matches("^[\\w.%+-]+@[\\w.-]+\\.[A-Za-z]{2,6}$")) {
+                showUserFriendlyError("Input Error",
+                    "Invalid email format. Please enter a valid email address.");
                 usernameEmailField.requestFocus();
                 return;
             }
@@ -171,57 +177,44 @@ public class LoginPanel extends JPanel {
             }
 
             if (password.length() < 8) {
-                showUserFriendlyError("Input Error", "Password must be at least 8 characters long.");
+                showUserFriendlyError("Input Error",
+                    "Password must be at least 8 characters long.");
                 passField.requestFocus();
                 return;
             }
 
-            overlay.setVisible(true);
-            loginButton.setEnabled(false);
+            // Backend login process
+            DBConnection dbConnection = new DBConnection();
+            CloudDbConnection cloudDbConnection = new CloudDbConnection();
+            LoginUser loginUser = new LoginUser(dbConnection, cloudDbConnection, accountIdentifier, password);
 
-            new SwingWorker<BackendError, Void>() {
-                private LoginUser loginUser;
+            BackendError loginErr = loginUser.login();
+            if (loginErr != null) {
+                showUserFriendlyError("Login Error", getLoginErrorMessage(loginErr));
+                return;
+            }
 
-                @Override
-                protected BackendError doInBackground() {
-                    DBConnection dbConnection = new DBConnection();
-                    CloudDbConnection cloudDbConnection = new CloudDbConnection();
-                    loginUser = new LoginUser(dbConnection, cloudDbConnection, accountIdentifier, password);
-                    return loginUser.login();
-                }
+            // Successful login
+            JOptionPane.showMessageDialog(
+                LoginPanel.this,
+                "<html><div style='width: 300px;'>" +
+                    "<h3 style='margin-top: 0;'>Login Successful!</h3>" +
+                    "<p>Welcome back to YAPM.</p>" +
+                    "</div></html>",
+                "Success",
+                JOptionPane.INFORMATION_MESSAGE
+            );
 
-                @Override
-                protected void done() {
-                    overlay.setVisible(false);
-                    loginButton.setEnabled(true);
-
-                    try {
-                        BackendError err = get();
-                        if (err != null) {
-                            showUserFriendlyError("Login Error", getLoginErrorMessage(err));
-                            return;
-                        }
-
-                        App.currentLoginUser = loginUser;
-                        usernameEmailField.setText("");
-                        passField.setText("");
-
-                        JOptionPane.showMessageDialog(LoginPanel.this,
-                            "<html><div style='width: 300px;'><h3>Login Successful!</h3><p>Welcome back to YAPM.</p></div></html>",
-                            "Success", JOptionPane.INFORMATION_MESSAGE);
-
-                        mainUI.showPage("home");
-
-                    } catch (Exception ex) {
-                        showUserFriendlyError("Error", "Unexpected error during login.");
-                    }
-                }
-            }.execute();
+            App.currentLoginUser = loginUser;
+            usernameEmailField.setText("");
+            passField.setText("");
+            mainUI.showPage("home");
         });
 
         formPanel.add(loginButton);
         formPanel.add(Box.createVerticalStrut(15));
 
+        // Register Prompt
         JLabel promptLabel = new JLabel("Don't have an account?");
         promptLabel.setForeground(labelColor);
         promptLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
@@ -233,6 +226,7 @@ public class LoginPanel extends JPanel {
         registerNowLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         registerNowLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         registerNowLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         registerNowLabel.addMouseListener(new MouseAdapter() {
             Font originalFont = registerNowLabel.getFont();
 
@@ -242,6 +236,7 @@ public class LoginPanel extends JPanel {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void mouseEntered(MouseEvent e) {
                 Map<TextAttribute, Object> attributes = (Map<TextAttribute, Object>) originalFont.getAttributes();
                 attributes.put(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON);
@@ -256,21 +251,9 @@ public class LoginPanel extends JPanel {
 
         formPanel.add(registerNowLabel);
         centerWrapper.add(formPanel);
+        add(centerWrapper, BorderLayout.CENTER);
 
-        JLayeredPane layeredPane = new JLayeredPane();
-        layeredPane.setLayout(new OverlayLayout(layeredPane));
-        layeredPane.add(centerWrapper, JLayeredPane.DEFAULT_LAYER);
-        layeredPane.add(overlay, JLayeredPane.PALETTE_LAYER);
-
-        layeredPane.addComponentListener(new java.awt.event.ComponentAdapter() {
-            @Override
-            public void componentResized(java.awt.event.ComponentEvent e) {
-                overlay.setBounds(0, 0, layeredPane.getWidth(), layeredPane.getHeight());
-            }
-        });
-
-        add(layeredPane, BorderLayout.CENTER);
-
+        // Footer
         JLabel footer = new JLabel("© 2025 All rights reserved.", SwingConstants.CENTER);
         footer.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         footer.setOpaque(true);
@@ -281,17 +264,28 @@ public class LoginPanel extends JPanel {
     }
 
     private void showUserFriendlyError(String title, String message) {
-        JOptionPane.showMessageDialog(this,
+        JOptionPane.showMessageDialog(
+            this,
             "<html><div style='width: 300px; padding: 5px;'><h3 style='margin-top: 0;'>" + title + "</h3>" + message + "</div></html>",
-            title, JOptionPane.ERROR_MESSAGE);
+            title,
+            JOptionPane.ERROR_MESSAGE
+        );
     }
 
     private String getLoginErrorMessage(BackendError error) {
-        return switch (error.getErrorType()) {
-            case InvalidLoginCredentials -> "Invalid username/email or password.<br><br>Please check your credentials and try again.";
-            case DbTransactionError -> "Database error during login.<br><br>Please try again later or contact support.";
-            case UserNotLoggedIn -> "Authentication error.<br><br>Please try logging in again.";
-            default -> "An unknown error occurred during login.<br><br>Please try again or contact support.";
-        };
+        switch (error.getErrorType()) {
+            case InvalidLoginCredentials:
+                return "Invalid username/email or password.<br><br>" +
+                    "Please check your credentials and try again.";
+            case DbTransactionError:
+                return "Database error during login.<br><br>" +
+                    "Please try again later or contact support.";
+            case UserNotLoggedIn:
+                return "Authentication error.<br><br>" +
+                    "Please try logging in again.";
+            default:
+                return "An unknown error occurred during login.<br><br>" +
+                    "Please try again or contact support.";
+        }
     }
 }
