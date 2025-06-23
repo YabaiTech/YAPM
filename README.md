@@ -28,6 +28,7 @@ YAPM (Yet Another Password Manager) is a simple, secure, and flexible password m
 
    - Manages user registration, login, and session management.
    - Passwords are salted and hashed using secure algorithms (e.g., PBKDF2, bcrypt).
+   - MYSQL database is utilized for storing user credentials as well as a timestamp for last login.
 
 2. **Encryption Module**
 
