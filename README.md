@@ -1,14 +1,13 @@
 # YAPM (Yet Another Password Manager)
 
-YAPM (Yet Another Password Manager) is a simple, secure, and flexible password manager that works both online and offline. Designed with usability and privacy in mind, YAPM helps you securely store and manage your passwords and sensitive credentials without compromising on convenience or security.
+YAPM (Yet Another Password Manager) is a simple, secure, and flexible password manager that works online. Designed with usability and privacy in mind, YAPM helps you securely store and manage your passwords and sensitive credentials without compromising on convenience or security.
 
 ## Features
 
-- **Online/Offline Support:** Use YAPM seamlessly whether you're connected to the internet or not. Your data is always accessible.
 - **Secure Storage:** All passwords and sensitive data are encrypted using strong cryptographic algorithms.
 - **User Authentication:** Secure login system to protect access to your password vault.
 - **Intuitive UI:** Simple and clean user interface for easy management of credentials.
-- **Password Generation:** Built-in strong password generator to help you create secure passwords.
+- **Password Generation:** Built-in strong password generator to help you create secure passwords as well as strength detection.
 - **Cross-Platform:** Designed for use on multiple operating systems.
 - **Extensible:** Modular architecture for adding new features or integrations.
 
@@ -18,7 +17,7 @@ YAPM (Yet Another Password Manager) is a simple, secure, and flexible password m
 
 - **Language:** Java
 - **Encryption:** Uses industry-standard cryptographic libraries (e.g., AES) to encrypt all sensitive data before storage.
-- **Persistence:** Supports both local file-based storage (for offline mode) and remote database/server storage (for online mode).
+- **Persistence:** Supports remote database/server storage (for online mode).
 - **User Interface:** Built with Java Swing ([FlatLaf library](https://github.com/JFormDesigner/FlatLaf)) for a responsive desktop experience.
 - **Dependency Management:** Uses Gradle for managing dependencies and builds.
 
@@ -38,13 +37,11 @@ YAPM (Yet Another Password Manager) is a simple, secure, and flexible password m
 
 3. **Storage Module**
 
-   - Abstracts storage to support both local and remote options.
-   - Enables seamless switching between online and offline operation.
+   - Treats storage as remote vaults.
 
 4. **Password Management Module**
 
    - CRUD operations (Create, Read, Update, Delete) for password entries.
-   - Supports additional fields such as notes, URLs, and categories.
 
 5. **UI Module**
 
@@ -53,6 +50,7 @@ YAPM (Yet Another Password Manager) is a simple, secure, and flexible password m
 
 6. **Password Generator**
    - Generates strong, random passwords including lowercase alphabets, uppercase alphabets, digits, and a collection of 32 special characters.
+   - Displays the strength of generated/manually typed password.
 
 ### Security Considerations
 
@@ -76,12 +74,11 @@ YAPM (Yet Another Password Manager) is a simple, secure, and flexible password m
 
 2. **Adding a Password**
 
-   - User adds a new entry; data is encrypted and stored both locally and remotely.
-
-3. **Switching Modes**
-   - User can turn off the internet and enter offline mode while the password manager still functions.
+   - User adds a new entry; data is encrypted and stored remotely.
 
 ## Getting Started
+
+For unix-like operating systems.
 
 1. **Clone the Repository**
 
@@ -90,25 +87,32 @@ YAPM (Yet Another Password Manager) is a simple, secure, and flexible password m
    cd YAPM
    ```
 
-2. **Build the Project**
+2. **Get Crendentials for Cloud DB and Cloud Storage and Copy it Over to app/.env**
+
+   ```sh
+   cp prod.env app/.env
+   ```
+
+3. **Build the Project**
 
    ```sh
    ./gradlew build
    ```
 
-3. **Run the Application**
+4. **Run the Application**
    ```sh
    ./gradlew run
    ```
 
-## Contributing
+## Limitations
 
-Don't bother.
+- Not an offline password manager, which is theoretically more secure.
+- Due to using the free tier of Supabase as cloud storage of the vaults, the sycning is not seemless. The caching delay holds back the updation of the vault across multiple devices.
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-## Disclaimer
+## Contributing
 
-YAPM is provided as-is, without warranty of any kind. Use at your own risk.
+Don't bother.
