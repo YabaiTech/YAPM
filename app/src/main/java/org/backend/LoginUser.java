@@ -141,7 +141,7 @@ public class LoginUser {
 
     // merge DB files if there were copies of them in local disk and cloud
     String localDbPath = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
-    String cloudDbPath = FileHandler.getFullPath(localDbPath.concat("_for_merging"));
+    String cloudDbPath = localDbPath.concat("_for_merging");
 
     File localDbFile = new File(localDbPath);
     File cloudDbFile = new File(cloudDbPath);
@@ -165,6 +165,9 @@ public class LoginUser {
           return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
               "[LoginUser.login] Failed to merge the cloud and local database files");
         }
+
+        vm.close();
+        otherVm.close();
 
         cloudDbFile.delete();
         boolean isOk = localDbFile.delete();
