@@ -147,12 +147,16 @@ public class LoginUser {
     File cloudDbFile = new File(cloudDbPath);
 
     if (!localDbFile.exists()) {
-      cloudDbFile.renameTo(localDbFile);
+      if (cloudDbFile.renameTo(localDbFile)) {
+        System.out.println("Successfully recovered from cloud by renaming the cloud db file...");
+      } else {
+        System.err.println("Failed to recovered from cloud by renaming the cloud db file...");
+      }
+
       return null;
     }
 
     if (cloudDbFile.exists()) {
-
       String mergedDbTempName = System.currentTimeMillis() + ".db";
       String mergedDbTempPath = FileHandler.getFullPath(mergedDbTempName);
       File newlyMergedDbFile = new File(mergedDbTempPath);
@@ -169,8 +173,13 @@ public class LoginUser {
         vm.close();
         otherVm.close();
 
-        cloudDbFile.delete();
-        boolean isOk = localDbFile.delete();
+        boolean isOk = cloudDbFile.delete();
+        if (!isOk) {
+          return new BackendError(BackendError.ErrorTypes.FileSystemError,
+              "[LoginUser.sync] Failed to delete the cloud DB file used for syncing and merging..");
+        }
+
+        isOk = localDbFile.delete();
         if (!isOk) {
           return new BackendError(BackendError.ErrorTypes.FileSystemError,
               "[LoginUser.sync] Failed to delete the old DB file");
@@ -291,7 +300,6 @@ public class LoginUser {
   }
 
   public BackendError sync() {
-
     if (this.fetchedUser == null) {
       return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn, "[LoginUser.logout] User isn't logged in");
     }
@@ -331,6 +339,7 @@ public class LoginUser {
         return new BackendError(BackendError.ErrorTypes.FileSystemError,
             "[LoginUser.sync] Failed to delete the cloud DB file used for merging and syncing");
       }
+
       isOk = localDbFile.delete();
       if (!isOk) {
         return new BackendError(BackendError.ErrorTypes.FileSystemError,
