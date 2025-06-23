@@ -50,7 +50,7 @@ public class SupabaseUtils {
       int code = res.statusCode();
 
       if (code / 100 == 2) {
-        // System.out.println("[Supabase.uploadVault] Success: " + res.body());
+        System.out.println("[Supabase.uploadVault] Success: " + res.body());
         return true;
       } else {
         System.err.println("[Supabase.uploadVault] Failed [" + code + "]: " + res.body());
@@ -89,8 +89,8 @@ public class SupabaseUtils {
       int code = res.statusCode();
 
       if (code / 100 == 2) {
-        // System.out.println("[Supabase.downloadVault] Success: wrote to " +
-        // localDest);
+        System.out.println("[Supabase.downloadVault] Success: wrote to " +
+            localDest);
         return true;
       } else {
         System.err.println("[Supabase.downloadVault] Failed [" + code + "]" + res.body());
