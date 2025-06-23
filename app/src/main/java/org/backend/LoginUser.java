@@ -323,11 +323,18 @@ public class LoginUser {
             "[LoginUser.login] Failed to merge the cloud and local database files");
       }
 
+      vm.close();
+      otherVm.close();
+
       cloudDbFile.delete();
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FileSystemError,
+            "[LoginUser.sync] Failed to delete the cloud DB file used for merging and syncing");
+      }
       isOk = localDbFile.delete();
       if (!isOk) {
         return new BackendError(BackendError.ErrorTypes.FileSystemError,
-            "[LoginUser.sync] Failed to delete the old DB file");
+            "[LoginUser.sync] Failed to delete the old DB file used for merging and syncing");
       }
 
       isOk = newlyMergedDb.renameTo(localDbFile);
