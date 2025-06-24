@@ -179,21 +179,7 @@ public class HomePanel extends JPanel {
 
     // Refresh
     refreshButton.addActionListener(e -> {
-      overlay.setVisible(true);
-      SwingWorker<Void, Void> worker = new SwingWorker<>() {
-        @Override
-        protected Void doInBackground() {
-          refreshEntryTable();
-
-          return null;
-        }
-
-        @Override
-        protected void done() {
-          overlay.setVisible(false);
-        }
-      };
-      worker.execute();
+      refreshEntryTable();
     });
 
     // Logout
@@ -323,12 +309,29 @@ public class HomePanel extends JPanel {
   private void refreshEntryTable() {
     credentials.clear();
     vm.close();
+    overlay.setVisible(true);
 
-    BackendError err = App.currentLoginUser.sync();
-    if (err != null) {
+    final BackendError[] err = new BackendError[1];
+    SwingWorker<Void, Void> worker = new SwingWorker<>() {
+      @Override
+      protected Void doInBackground() {
+        err[0] = App.currentLoginUser.sync();
+
+        return null;
+      }
+
+      @Override
+      protected void done() {
+        overlay.setVisible(false);
+      }
+    };
+    worker.execute();
+
+    if (err[0] != null) {
       JOptionPane.showMessageDialog(this, "Failed to sync with cloud!", "Error", JOptionPane.ERROR_MESSAGE);
       System.err.println(
-          "[HomePanel.refreshEntryTable] Failed to sync with cloud: " + err.getErrorType() + " -> " + err.getContext());
+          "[HomePanel.refreshEntryTable] Failed to sync with cloud: " + err[0].getErrorType() + " -> "
+              + err[0].getContext());
     }
 
     String dbPath = App.currentLoginUser.getDbFilePath();
