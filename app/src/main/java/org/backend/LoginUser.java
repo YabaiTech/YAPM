@@ -193,13 +193,13 @@ public class LoginUser {
         }
 
         try {
-          isOk = this.localDbOps.updatePasswordDbPath(mergedDbTempPath, this.fetchedUser.username);
+          isOk = this.localDbOps.updatePasswordDbPath(newlyMergedDbFile.getName(), this.fetchedUser.username);
           if (!isOk) {
             return new BackendError(BackendError.ErrorTypes.DbTransactionError,
                 "[LoginUser.login] Failed to update the path of the new db file in the local DB");
           }
 
-          isOk = this.cloudDbOps.updatePasswordDbPath(mergedDbTempPath, this.fetchedUser.username);
+          isOk = this.cloudDbOps.updatePasswordDbPath(newlyMergedDbFile.getName(), this.fetchedUser.username);
           if (!isOk) {
             return new BackendError(BackendError.ErrorTypes.DbTransactionError,
                 "[LoginUser.login] Failed to update the path of the new db file in the cloud DB");
@@ -367,13 +367,13 @@ public class LoginUser {
       }
 
       try {
-        isOk = this.localDbOps.updatePasswordDbPath(mergedDbTempPath, this.fetchedUser.username);
+        isOk = this.localDbOps.updatePasswordDbPath(newlyMergedDb.getName(), this.fetchedUser.username);
         if (!isOk) {
           return new BackendError(BackendError.ErrorTypes.DbTransactionError,
               "[LoginUser.sync] Failed to update the path of the new db file in the local DB");
         }
 
-        isOk = this.cloudDbOps.updatePasswordDbPath(mergedDbTempPath, this.fetchedUser.username);
+        isOk = this.cloudDbOps.updatePasswordDbPath(newlyMergedDb.getName(), this.fetchedUser.username);
         if (!isOk) {
           return new BackendError(BackendError.ErrorTypes.DbTransactionError,
               "[LoginUser.sync] Failed to update the path of the new db file in the cloud DB");
