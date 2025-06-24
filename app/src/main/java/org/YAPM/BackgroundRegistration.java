@@ -11,13 +11,18 @@ public class BackgroundRegistration extends SwingWorker<Void, Void> {
   private final String uname;
   private final String email;
   private final String passwd;
+  private final LoadingOverlay overlay;
+  private final JButton registerButton;
 
-  public BackgroundRegistration(RegisterPanel rPanel, RegisterUser rUser, String uname, String email, String passwd) {
+  public BackgroundRegistration(RegisterPanel rPanel, RegisterUser rUser, String uname, String email, String passwd,
+      LoadingOverlay overlay, JButton registerButton) {
     this.registerUser = rUser;
     this.registerPanel = rPanel;
     this.uname = uname;
     this.email = email;
     this.passwd = passwd;
+    this.overlay = overlay;
+    this.registerButton = registerButton;
   }
 
   private void showUserFriendlyError(JPanel registerPanel, String title, String message) {
@@ -96,8 +101,8 @@ public class BackgroundRegistration extends SwingWorker<Void, Void> {
     JOptionPane.showMessageDialog(
         this.registerPanel,
         "<html><div style='width: 300px;'>" +
-            "<h3 style='margin-top: 0;'>Login Successful!</h3>" +
-            "<p>Welcome back to YAPM.</p>" +
+            "<h3 style='margin-top: 0;'>Registration Successful!</h3>" +
+            "<p>Now you may login with your credentials.</p>" +
             "</div></html>",
         "Success",
         JOptionPane.INFORMATION_MESSAGE);
@@ -108,5 +113,11 @@ public class BackgroundRegistration extends SwingWorker<Void, Void> {
     this.registerPanel.mainUI.showPage("login");
 
     return null;
+  }
+
+  @Override
+  public void done() {
+    overlay.setVisible(false);
+    registerButton.setEnabled(true);
   }
 }

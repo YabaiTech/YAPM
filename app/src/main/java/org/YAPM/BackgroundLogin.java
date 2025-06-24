@@ -8,19 +8,23 @@ import javax.swing.*;
 public class BackgroundLogin extends SwingWorker<Void, Void> {
   private final LoginUser loginUser;
   private final LoginPanel loginPanel;
+  private final LoadingOverlay overlay;
+  private final JButton loginButton;
 
-  public BackgroundLogin(LoginPanel lPanel,LoginUser lUser) {
+  public BackgroundLogin(LoginPanel lPanel, LoginUser lUser, LoadingOverlay overlay, JButton loginButton) {
     this.loginUser = lUser;
     this.loginPanel = lPanel;
+    this.overlay = overlay;
+    this.loginButton = loginButton;
   }
 
   private void showUserFriendlyError(JPanel loginPanel, String title, String message) {
     JOptionPane.showMessageDialog(
         loginPanel,
-        "<html><div style='width: 300px; padding: 5px;'><h3 style='margin-top: 0;'>" + title + "</h3>" + message + "</div></html>",
+        "<html><div style='width: 300px; padding: 5px;'><h3 style='margin-top: 0;'>" + title + "</h3>" + message
+            + "</div></html>",
         title,
-        JOptionPane.ERROR_MESSAGE
-    );
+        JOptionPane.ERROR_MESSAGE);
   }
 
   private String getLoginErrorMessage(BackendError error) {
@@ -40,7 +44,7 @@ public class BackgroundLogin extends SwingWorker<Void, Void> {
   public Void doInBackground() {
     BackendError loginErr = loginUser.login();
     if (loginErr != null) {
-      showUserFriendlyError(this.loginPanel,"Login Error", getLoginErrorMessage(loginErr));
+      showUserFriendlyError(this.loginPanel, "Login Error", getLoginErrorMessage(loginErr));
       this.loginPanel.mainUI.showPage("login");
 
       return null;
@@ -54,8 +58,7 @@ public class BackgroundLogin extends SwingWorker<Void, Void> {
             "<p>Welcome back to YAPM.</p>" +
             "</div></html>",
         "Success",
-        JOptionPane.INFORMATION_MESSAGE
-    );
+        JOptionPane.INFORMATION_MESSAGE);
 
     App.currentLoginUser = loginUser;
     this.loginPanel.usernameEmailField.setText("");
@@ -63,5 +66,11 @@ public class BackgroundLogin extends SwingWorker<Void, Void> {
     this.loginPanel.mainUI.showPage("home");
 
     return null;
+  }
+
+  @Override
+  public void done() {
+    overlay.setVisible(false);
+    loginButton.setEnabled(true);
   }
 }
