@@ -16,6 +16,7 @@ public class RegisterPanel extends JPanel {
   final JTextField usernameField;
   final JTextField emailField;
   final JPasswordField passField;
+  private final LoadingOverlay overlay;
 
   public RegisterPanel(MainUI mainUI) {
     this.mainUI = mainUI;
@@ -39,6 +40,13 @@ public class RegisterPanel extends JPanel {
     // Center Panel
     JPanel centerWrapper = new JPanel(new GridBagLayout());
     centerWrapper.setBackground(darkBg);
+
+    overlay = new LoadingOverlay();
+    overlay.setVisible(false);
+    overlay.setOpaque(false);
+    overlay.setAlignmentX(Component.CENTER_ALIGNMENT);
+    overlay.setAlignmentY(Component.CENTER_ALIGNMENT);
+    overlay.setPreferredSize(new Dimension(600, 700));
 
     JPanel formPanel = new JPanel();
     formPanel.setLayout(new BoxLayout(formPanel, BoxLayout.Y_AXIS));
@@ -181,7 +189,10 @@ public class RegisterPanel extends JPanel {
       CloudDbConnection cloudDb = new CloudDbConnection();
       RegisterUser reg = new RegisterUser(db, cloudDb);
 
-      BackgroundRegistration blWorker = new BackgroundRegistration(this, reg, uname, email, pwd);
+      overlay.setVisible(true);
+      registerButton.setEnabled(false);
+      BackgroundRegistration blWorker = new BackgroundRegistration(this, reg, uname, email, pwd, overlay,
+          registerButton);
       blWorker.execute();
     });
 
@@ -225,7 +236,20 @@ public class RegisterPanel extends JPanel {
 
     formPanel.add(loginNowLabel);
     centerWrapper.add(formPanel);
-    add(centerWrapper, BorderLayout.CENTER);
+
+    JLayeredPane layeredPane = new JLayeredPane();
+    layeredPane.setLayout(new OverlayLayout(layeredPane));
+    layeredPane.add(centerWrapper, JLayeredPane.DEFAULT_LAYER);
+    layeredPane.add(overlay, JLayeredPane.PALETTE_LAYER);
+
+    layeredPane.addComponentListener(new java.awt.event.ComponentAdapter() {
+      @Override
+      public void componentResized(java.awt.event.ComponentEvent e) {
+        overlay.setBounds(0, 0, layeredPane.getWidth(), layeredPane.getHeight());
+      }
+    });
+
+    add(layeredPane, BorderLayout.CENTER);
 
     // Footer
     JLabel footer = new JLabel("© 2025 All rights reserved.",
