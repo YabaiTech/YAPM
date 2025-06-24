@@ -114,7 +114,9 @@ public class LoginUser {
       }
 
       String pathStr = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
-      boolean isOk = supaUtils.downloadVault(new File(pathStr).getName(),
+      // we're pulling the DB file from the cloud and saving it using the local DB
+      // name + "_for_merging" name
+      boolean isOk = supaUtils.downloadVault(this.cloudFetchedUser.passwordDbName,
           Path.of(pathStr.concat("_for_merging")));
       if (!isOk) {
         return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
@@ -326,7 +328,7 @@ public class LoginUser {
     File localDbFile = new File(localDbPath);
 
     SupabaseUtils supaUtils = new SupabaseUtils();
-    boolean isOk = supaUtils.downloadVault(localDbFile.getName(), Path.of(cloudDbPath));
+    boolean isOk = supaUtils.downloadVault(this.cloudFetchedUser.passwordDbName, Path.of(cloudDbPath));
     if (!isOk) {
       return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
           "[LoginUser.login] Failed to download DB file from the cloud");
