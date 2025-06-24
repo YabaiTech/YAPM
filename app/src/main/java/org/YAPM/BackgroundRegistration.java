@@ -8,10 +8,16 @@ import javax.swing.*;
 public class BackgroundRegistration extends SwingWorker<Void, Void> {
   private final RegisterUser registerUser;
   private final RegisterPanel registerPanel;
+  private final String uname;
+  private final String email;
+  private final String passwd;
 
-  public BackgroundRegistration(RegisterPanel lPanel, RegisterUser lUser) {
-    this.registerUser = lUser;
-    this.registerPanel = lPanel;
+  public BackgroundRegistration(RegisterPanel rPanel, RegisterUser rUser, String uname, String email, String passwd) {
+    this.registerUser = rUser;
+    this.registerPanel = rPanel;
+    this.uname = uname;
+    this.email = email;
+    this.passwd = passwd;
   }
 
   private void showUserFriendlyError(JPanel registerPanel, String title, String message) {
@@ -53,7 +59,33 @@ public class BackgroundRegistration extends SwingWorker<Void, Void> {
 
   @Override
   public Void doInBackground() {
-    BackendError registerErr = registerUser.register();
+    BackendError registerErr;
+
+    registerErr = registerUser.setUsername(this.uname);
+    if (registerErr != null) {
+      showUserFriendlyError(this.registerPanel, "Username Error", getRegistrationErrorMessage(registerErr));
+      this.registerPanel.mainUI.showPage("register");
+
+      return null;
+    }
+
+    registerErr = registerUser.setEmail(this.email);
+    if (registerErr != null) {
+      showUserFriendlyError(this.registerPanel, "Email Error", getRegistrationErrorMessage(registerErr));
+      this.registerPanel.mainUI.showPage("register");
+
+      return null;
+    }
+
+    registerErr = registerUser.setPassword(this.passwd);
+    if (registerErr != null) {
+      showUserFriendlyError(this.registerPanel, "Password Error", getRegistrationErrorMessage(registerErr));
+      this.registerPanel.mainUI.showPage("register");
+
+      return null;
+    }
+
+    registerErr = this.registerUser.register();
     if (registerErr != null) {
       showUserFriendlyError(this.registerPanel, "Registration Error", getRegistrationErrorMessage(registerErr));
       this.registerPanel.mainUI.showPage("register");
@@ -61,7 +93,6 @@ public class BackgroundRegistration extends SwingWorker<Void, Void> {
       return null;
     }
 
-    // Successful login
     JOptionPane.showMessageDialog(
         this.registerPanel,
         "<html><div style='width: 300px;'>" +
