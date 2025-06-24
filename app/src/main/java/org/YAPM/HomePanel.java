@@ -311,11 +311,16 @@ public class HomePanel extends JPanel {
     vm.close();
     overlay.setVisible(true);
 
-    final BackendError[] err = new BackendError[1];
     SwingWorker<Void, Void> worker = new SwingWorker<>() {
       @Override
       protected Void doInBackground() {
-        err[0] = App.currentLoginUser.sync();
+        BackendError err = App.currentLoginUser.sync();
+        if (err != null) {
+          JOptionPane.showMessageDialog(null, "Failed to sync with cloud!", "Error", JOptionPane.ERROR_MESSAGE);
+          System.err.println(
+              "[HomePanel.refreshEntryTable] Failed to sync with cloud: " + err.getErrorType() + " -> "
+                  + err.getContext());
+        }
 
         return null;
       }
@@ -323,43 +328,40 @@ public class HomePanel extends JPanel {
       @Override
       protected void done() {
         overlay.setVisible(false);
+
+        String dbPath = App.currentLoginUser.getDbFilePath();
+        String pwd = App.currentLoginUser.getPlaintextPassword();
+        vm = new VaultManager(dbPath, pwd);
+
+        VaultStatus resp = vm.connectToDB();
+        if (resp != VaultStatus.DBConnectionSuccess) {
+          JOptionPane.showMessageDialog(null, "Failed to open vault!", "Error", JOptionPane.ERROR_MESSAGE);
+          System.err.println("[HomePanel.refreshEntryTable] Failed to open vault: " + resp);
+        }
+
+        VaultStatus status = vm.openVault(credentials);
+        if (status != VaultStatus.DBOpenVaultSuccess) {
+          JOptionPane.showMessageDialog(null, "Failed to reload entries: " + status, "Error",
+              JOptionPane.ERROR_MESSAGE);
+          return;
+        }
+
+        String[][] rowData = getRowData();
+        DefaultTableModel model = new DefaultTableModel(rowData, new String[] { "Username", "URL", "Password" });
+        table.setModel(model);
+
+        // reapply renderer/editor
+        TableCellRenderer renderer = new CopyButtonCellRenderer();
+        TableCellEditor editor = new CopyButtonCellEditor();
+        for (int i = 0; i < table.getColumnCount(); i++) {
+          table.getColumnModel().getColumn(i).setCellRenderer(renderer);
+          table.getColumnModel().getColumn(i).setCellEditor(editor);
+        }
+
       }
     };
     worker.execute();
 
-    if (err[0] != null) {
-      JOptionPane.showMessageDialog(this, "Failed to sync with cloud!", "Error", JOptionPane.ERROR_MESSAGE);
-      System.err.println(
-          "[HomePanel.refreshEntryTable] Failed to sync with cloud: " + err[0].getErrorType() + " -> "
-              + err[0].getContext());
-    }
-
-    String dbPath = App.currentLoginUser.getDbFilePath();
-    String pwd = App.currentLoginUser.getPlaintextPassword();
-    this.vm = new VaultManager(dbPath, pwd);
-    VaultStatus resp = vm.connectToDB();
-    if (resp != VaultStatus.DBConnectionSuccess) {
-      JOptionPane.showMessageDialog(this, "Failed to open vault!", "Error", JOptionPane.ERROR_MESSAGE);
-      System.err.println("[HomePanel.refreshEntryTable] Failed to open vault: " + resp);
-    }
-
-    VaultStatus status = vm.openVault(credentials);
-    if (status != VaultStatus.DBOpenVaultSuccess) {
-      JOptionPane.showMessageDialog(this, "Failed to reload entries: " + status, "Error", JOptionPane.ERROR_MESSAGE);
-      return;
-    }
-
-    String[][] rowData = getRowData();
-    DefaultTableModel model = new DefaultTableModel(rowData, new String[] { "Username", "URL", "Password" });
-    table.setModel(model);
-
-    // reapply renderer/editor
-    TableCellRenderer renderer = new CopyButtonCellRenderer();
-    TableCellEditor editor = new CopyButtonCellEditor();
-    for (int i = 0; i < table.getColumnCount(); i++) {
-      table.getColumnModel().getColumn(i).setCellRenderer(renderer);
-      table.getColumnModel().getColumn(i).setCellEditor(editor);
-    }
   }
 
   // adding live entropy calculator
