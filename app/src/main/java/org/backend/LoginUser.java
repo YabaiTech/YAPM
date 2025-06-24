@@ -350,7 +350,7 @@ public class LoginUser {
       vm.close();
       otherVm.close();
 
-      cloudDbFile.delete();
+      isOk = cloudDbFile.delete();
       if (!isOk) {
         return new BackendError(BackendError.ErrorTypes.FileSystemError,
             "[LoginUser.sync] Failed to delete the cloud DB file used for merging and syncing");
