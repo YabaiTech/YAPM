@@ -181,42 +181,8 @@ public class RegisterPanel extends JPanel {
       CloudDbConnection cloudDb = new CloudDbConnection();
       RegisterUser reg = new RegisterUser(db, cloudDb);
 
-      BackendError err;
-
-      err = reg.setUsername(uname);
-      if (err != null) {
-        showUserFriendlyError("Username Error", getUsernameErrorMessage(err));
-        usernameField.requestFocus();
-        return;
-      }
-
-      err = reg.setEmail(email);
-      if (err != null) {
-        showUserFriendlyError("Email Error", getEmailErrorMessage(err));
-        emailField.requestFocus();
-        return;
-      }
-
-      err = reg.setPassword(pwd);
-      if (err != null) {
-        showUserFriendlyError("Password Error", getPasswordErrorMessage(err));
-        passField.requestFocus();
-        return;
-      }
-
-      err = reg.register();
-      if (err == null) {
-        JOptionPane.showMessageDialog(RegisterPanel.this,
-            "<html><div style='width: 300px;'>" +
-                "<h3>Registration Successful!</h3>" +
-                "<p>You can now login with your credentials.</p>" +
-                "</div></html>",
-            "Success",
-            JOptionPane.INFORMATION_MESSAGE);
-        mainUI.showPage("login");
-      } else {
-        showUserFriendlyError("Registration Error", getRegistrationErrorMessage(err));
-      }
+      BackgroundRegistration blWorker = new BackgroundRegistration(this, reg, uname, email, pwd);
+      blWorker.execute();
     });
 
     formPanel.add(registerButton);
@@ -262,12 +228,14 @@ public class RegisterPanel extends JPanel {
     add(centerWrapper, BorderLayout.CENTER);
 
     // Footer
-    JLabel footer = new JLabel("© 2025 All rights reserved.", SwingConstants.CENTER);
+    JLabel footer = new JLabel("© 2025 All rights reserved.",
+        SwingConstants.CENTER);
     footer.setFont(new Font("Segoe UI", Font.PLAIN, 12));
     footer.setOpaque(true);
     footer.setBackground(darkBg.darker());
     footer.setForeground(textColor);
     footer.setBorder(new EmptyBorder(20, 0, 20, 0));
+
     add(footer, BorderLayout.SOUTH);
   }
 
