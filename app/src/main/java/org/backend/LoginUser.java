@@ -140,38 +140,58 @@ public class LoginUser {
     }
 
     // merge DB files if there were copies of them in local disk and cloud
-    String dbPath = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
-    File dbInLocalDisk = new File(dbPath);
-    File dbToMerge = new File(dbPath.concat("_for_merging"));
+    String localDbPath = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
+    String cloudDbPath = localDbPath.concat("_for_merging");
 
-    if (!dbInLocalDisk.exists()) {
-      dbToMerge.renameTo(dbInLocalDisk);
+    File localDbFile = new File(localDbPath);
+    File cloudDbFile = new File(cloudDbPath);
+
+    if (!localDbFile.exists()) {
+      if (cloudDbFile.renameTo(localDbFile)) {
+        System.out.println("Successfully recovered from cloud by renaming the cloud db file...");
+      } else {
+        System.err.println("Failed to recovered from cloud by renaming the cloud db file...");
+      }
+
       return null;
     }
 
-    if (dbToMerge.exists()) {
-      try (VaultManager vm = new VaultManager(dbPath, this.plaintextPassword)) {
-        VaultStatus status = vm.connectToDB();
-        if (status != VaultStatus.DBConnectionSuccess) {
-          return new BackendError(BackendError.ErrorTypes.LocalDBCreationFailed,
-              "[LoginUser.login] Failed to connect to the local database for merging");
-        }
+    if (cloudDbFile.exists()) {
+      String mergedDbTempName = System.currentTimeMillis() + ".db";
+      String mergedDbTempPath = FileHandler.getFullPath(mergedDbTempName);
+      File newlyMergedDbFile = new File(mergedDbTempPath);
 
-        status = vm.merge(new VaultManager(dbPath.concat("_for_merging"),
-            this.plaintextPassword));
+      try (VaultManager vm = new VaultManager(localDbPath, this.plaintextPassword);
+          VaultManager otherVm = new VaultManager(localDbPath.concat("_for_merging"), this.plaintextPassword)) {
+
+        VaultStatus status = VaultManager.merge(mergedDbTempPath, vm, otherVm);
         if (status != VaultStatus.DBMergeSuccess) {
           return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
               "[LoginUser.login] Failed to merge the cloud and local database files");
         }
 
-        status = vm.closeDB();
-        if (status != VaultStatus.DBCloseSuccess) {
-          return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
-              "[LoginUser.login] Failed to merge the cloud and local database files");
+        vm.close();
+        otherVm.close();
+
+        boolean isOk = cloudDbFile.delete();
+        if (!isOk) {
+          return new BackendError(BackendError.ErrorTypes.FileSystemError,
+              "[LoginUser.sync] Failed to delete the cloud DB file used for syncing and merging..");
         }
 
-        dbToMerge.delete();
-        boolean isOk = supaUtils.uploadVault(Path.of(dbPath), new File(dbPath).getName());
+        isOk = localDbFile.delete();
+        if (!isOk) {
+          return new BackendError(BackendError.ErrorTypes.FileSystemError,
+              "[LoginUser.sync] Failed to delete the old DB file");
+        }
+
+        isOk = newlyMergedDbFile.renameTo(localDbFile);
+        if (!isOk) {
+          return new BackendError(BackendError.ErrorTypes.FileSystemError,
+              "[LoginUser.sync] Failed to rename the newly merged DB file to the assigned name");
+        }
+
+        isOk = supaUtils.uploadVault(Path.of(localDbPath), localDbFile.getName());
         if (!isOk) {
           return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
               "[LoginUser.login] Failed to upload the merged DB file to the cloud");
@@ -280,7 +300,6 @@ public class LoginUser {
   }
 
   public BackendError sync() {
-
     if (this.fetchedUser == null) {
       return new BackendError(BackendError.ErrorTypes.UserNotLoggedIn, "[LoginUser.logout] User isn't logged in");
     }
@@ -296,30 +315,44 @@ public class LoginUser {
     }
 
     // merge DBs
-    File dbToMerge = new File(cloudDbPath);
+    File cloudDbFile = new File(cloudDbPath);
+    File localDbFile = new File(localDbPath);
 
     try (VaultManager vm = new VaultManager(localDbPath, this.plaintextPassword);
         VaultManager otherVm = new VaultManager(cloudDbPath, this.plaintextPassword);) {
 
-      VaultStatus status = vm.merge(otherVm);
+      String mergedDbTempName = System.currentTimeMillis() + ".db";
+      String mergedDbTempPath = FileHandler.getFullPath(mergedDbTempName);
+      File newlyMergedDb = new File(mergedDbTempPath);
+
+      VaultStatus status = VaultManager.merge(mergedDbTempPath, vm, otherVm);
       if (status != VaultStatus.DBMergeSuccess) {
         return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
             "[LoginUser.login] Failed to merge the cloud and local database files");
       }
 
-      status = vm.closeDB();
-      if (status != VaultStatus.DBCloseSuccess) {
-        return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
-            "[LoginUser.login] Failed to close the local vault after successful merging");
-      }
-      status = otherVm.closeDB();
-      if (status != VaultStatus.DBCloseSuccess) {
-        return new BackendError(BackendError.ErrorTypes.FailedToMergeDbFiles,
-            "[LoginUser.login] Failed to close the cloud vault after successful merging");
+      vm.close();
+      otherVm.close();
+
+      cloudDbFile.delete();
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FileSystemError,
+            "[LoginUser.sync] Failed to delete the cloud DB file used for merging and syncing");
       }
 
-      dbToMerge.delete();
-      isOk = supaUtils.uploadVault(Path.of(localDbPath), new File(localDbPath).getName());
+      isOk = localDbFile.delete();
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FileSystemError,
+            "[LoginUser.sync] Failed to delete the old DB file used for merging and syncing");
+      }
+
+      isOk = newlyMergedDb.renameTo(localDbFile);
+      if (!isOk) {
+        return new BackendError(BackendError.ErrorTypes.FileSystemError,
+            "[LoginUser.sync] Failed to rename the newly merged DB file to the assigned name");
+      }
+
+      isOk = supaUtils.uploadVault(Path.of(localDbPath), localDbFile.getName());
       if (!isOk) {
         return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
             "[LoginUser.login] Failed to upload the merged DB file to the cloud");
