@@ -7,6 +7,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.security.spec.KeySpec;
 import java.util.Base64;
+import java.util.UUID;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -157,7 +158,7 @@ public class LoginUser {
     }
 
     if (cloudDbFile.exists()) {
-      String mergedDbTempName = System.currentTimeMillis() + ".db";
+      String mergedDbTempName = this.fetchedUser.username + UUID.randomUUID().toString() + ".db";
       String mergedDbTempPath = FileHandler.getFullPath(mergedDbTempName);
       File newlyMergedDbFile = new File(mergedDbTempPath);
 
@@ -185,16 +186,34 @@ public class LoginUser {
               "[LoginUser.sync] Failed to delete the old DB file");
         }
 
-        isOk = newlyMergedDbFile.renameTo(localDbFile);
-        if (!isOk) {
-          return new BackendError(BackendError.ErrorTypes.FileSystemError,
-              "[LoginUser.sync] Failed to rename the newly merged DB file to the assigned name");
-        }
+        // isOk = newlyMergedDbFile.renameTo(localDbFile);
+        // if (!isOk) {
+        // return new BackendError(BackendError.ErrorTypes.FileSystemError,
+        // "[LoginUser.sync] Failed to rename the newly merged DB file to the assigned
+        // name");
+        // }
 
-        isOk = supaUtils.uploadVault(Path.of(localDbPath), localDbFile.getName());
+        isOk = supaUtils.uploadVault(Path.of(mergedDbTempPath), newlyMergedDbFile.getName());
         if (!isOk) {
           return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
               "[LoginUser.login] Failed to upload the merged DB file to the cloud");
+        }
+
+        try {
+          isOk = this.localDbOps.updatePasswordDbPath(mergedDbTempPath, this.fetchedUser.username);
+          if (!isOk) {
+            return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+                "[LoginUser.login] Failed to update the path of the new db file in the local DB");
+          }
+
+          isOk = this.cloudDbOps.updatePasswordDbPath(mergedDbTempPath, this.fetchedUser.username);
+          if (!isOk) {
+            return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+                "[LoginUser.login] Failed to update the path of the new db file in the cloud DB");
+          }
+        } catch (Exception e) {
+          return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+              "[LoginUser.login] DB operation throwed! Failed to update the path of the new db file: " + e);
         }
       }
     }
@@ -307,21 +326,20 @@ public class LoginUser {
     String localDbPath = FileHandler.getFullPath(this.fetchedUser.passwordDbName);
     String cloudDbPath = localDbPath.concat("_for_merging");
 
+    File cloudDbFile = new File(cloudDbPath);
+    File localDbFile = new File(localDbPath);
+
     SupabaseUtils supaUtils = new SupabaseUtils();
-    boolean isOk = supaUtils.downloadVault(new File(localDbPath).getName(), Path.of(cloudDbPath));
+    boolean isOk = supaUtils.downloadVault(localDbFile.getName(), Path.of(cloudDbPath));
     if (!isOk) {
       return new BackendError(BackendError.ErrorTypes.FailedToDownloadDbFile,
           "[LoginUser.login] Failed to download DB file from the cloud");
     }
 
-    // merge DBs
-    File cloudDbFile = new File(cloudDbPath);
-    File localDbFile = new File(localDbPath);
-
     try (VaultManager vm = new VaultManager(localDbPath, this.plaintextPassword);
         VaultManager otherVm = new VaultManager(cloudDbPath, this.plaintextPassword);) {
 
-      String mergedDbTempName = System.currentTimeMillis() + ".db";
+      String mergedDbTempName = this.fetchedUser.username + UUID.randomUUID().toString() + ".db";
       String mergedDbTempPath = FileHandler.getFullPath(mergedDbTempName);
       File newlyMergedDb = new File(mergedDbTempPath);
 
@@ -346,16 +364,27 @@ public class LoginUser {
             "[LoginUser.sync] Failed to delete the old DB file used for merging and syncing");
       }
 
-      isOk = newlyMergedDb.renameTo(localDbFile);
-      if (!isOk) {
-        return new BackendError(BackendError.ErrorTypes.FileSystemError,
-            "[LoginUser.sync] Failed to rename the newly merged DB file to the assigned name");
-      }
-
-      isOk = supaUtils.uploadVault(Path.of(localDbPath), localDbFile.getName());
+      isOk = supaUtils.uploadVault(Path.of(mergedDbTempPath), newlyMergedDb.getName());
       if (!isOk) {
         return new BackendError(BackendError.ErrorTypes.FailedToUploadDbFile,
             "[LoginUser.login] Failed to upload the merged DB file to the cloud");
+      }
+
+      try {
+        isOk = this.localDbOps.updatePasswordDbPath(mergedDbTempPath, this.fetchedUser.username);
+        if (!isOk) {
+          return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+              "[LoginUser.sync] Failed to update the path of the new db file in the local DB");
+        }
+
+        isOk = this.cloudDbOps.updatePasswordDbPath(mergedDbTempPath, this.fetchedUser.username);
+        if (!isOk) {
+          return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+              "[LoginUser.sync] Failed to update the path of the new db file in the cloud DB");
+        }
+      } catch (Exception e) {
+        return new BackendError(BackendError.ErrorTypes.DbTransactionError,
+            "[LoginUser.sync] DB operation throwed! Failed to update the path of the new db file: " + e);
       }
     }
 

@@ -110,4 +110,16 @@ public class DBOperations {
       return opStat == 1;
     }
   }
+
+  public boolean updatePasswordDbPath(String newDbFilePath, String username) throws SQLException {
+    String query = "UPDATE `" + EnvVars.MASTER_USER_TABLE + "` SET `pwd_db_path`=? WHERE `username`=?";
+
+    try (PreparedStatement ps = con.prepareStatement(query)) {
+      ps.setString(1, newDbFilePath);
+      ps.setString(2, username);
+
+      int opStat = ps.executeUpdate();
+      return opStat == 1;
+    }
+  }
 }
