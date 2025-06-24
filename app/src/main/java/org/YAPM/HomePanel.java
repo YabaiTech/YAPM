@@ -114,7 +114,8 @@ public class HomePanel extends JPanel {
     JButton deleteButton = new JButton("Delete");
 
     Font btnFont = new Font("Segoe UI", Font.PLAIN, 14);
-    JButton[] buttons = { refreshButton, addButton, editButton, deleteButton, logoutButton };
+    // JButton[] buttons = { refreshButton, addButton, editButton, deleteButton, logoutButton };
+    JButton[] buttons = { addButton, editButton, deleteButton, logoutButton };
     for (JButton btn : buttons) {
       btn.setFont(btnFont);
       btn.setBackground(darkBg.darker());
@@ -178,9 +179,9 @@ public class HomePanel extends JPanel {
     });
 
     // Refresh
-    refreshButton.addActionListener(e -> {
-      refreshEntryTable();
-    });
+//    refreshButton.addActionListener(e -> {
+//      refreshEntryTable();
+//    });
 
     // Logout
     logoutButton.addActionListener(e -> {
