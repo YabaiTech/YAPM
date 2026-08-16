@@ -74,7 +74,7 @@ public class SupabaseUtils {
       }
 
       String downloadUrl = String.format(
-          "%sstorage/v1/object/public/%s/%s",
+          "%sstorage/v1/object/%s/%s",
           SUPABASE_URL,
           BUCKET_NAME,
           URLEncoder.encode(remotePath, StandardCharsets.UTF_8));
