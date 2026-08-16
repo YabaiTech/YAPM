@@ -54,4 +54,23 @@ tasks.named<Test>("test") {
     testLogging {
       showStandardStreams = true
     }
+
+    // The backend DB tests require a running MySQL instance, which is only
+    // available in the Ubuntu CI job. They are skipped when SKIP_DB_TESTS is set
+    // (e.g. the macOS/Windows CI jobs that have no MySQL service).
+    if (System.getenv("SKIP_DB_TESTS") == "true") {
+      exclude(
+        "**/CloudDbConnectionTest*",
+        "**/DBConnectionTest*",
+        "**/SetupDBTest*",
+        "**/RegisterUserTest*",
+        "**/LoginUserTest*",
+      )
+    }
+
+    // SupabaseUtilsTest hits a real Supabase bucket and requires credentials plus
+    // network access that aren't available on CI.
+    if (System.getenv("CI") == "true") {
+      exclude("**/SupabaseUtilsTest*")
+    }
 }

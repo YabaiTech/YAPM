@@ -21,13 +21,6 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-    env:
-      DATABASE_NAME: "YAPM_TEST2"
-      DATABASE_BASE_URL: "jdbc:mysql://127.0.0.1:3306/"
-      DATABASE_USER: "root"
-      DATABASE_PASSWORD: ""
-      MASTER_USER_TABLE: "master_users"
-      JDBC_URL: "jdbc:mysql://127.0.0.1:3306/YAPM_TEST2"
 
     steps:
       - name: Checkout repository
@@ -55,6 +48,16 @@ jobs:
             echo "Waiting for MySQL..."
             sleep 1
           done
+
+      - name: Create .env file
+        run: |
+          cat > app/.env <<'EOF'
+          DATABASE_NAME=YAPM_TEST2
+          DATABASE_BASE_URL=jdbc:mysql://127.0.0.1:3306/
+          DATABASE_USER=root
+          DATABASE_PASSWORD=
+          MASTER_USER_TABLE=master_users
+          EOF
 
       - name: Build and run tests
         run: ./gradlew build --no-daemon
@@ -88,6 +91,16 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x ./gradlew
 
+      - name: Create .env file
+        run: |
+          cat > app/.env <<'EOF'
+          DATABASE_NAME=YAPM_TEST2
+          DATABASE_BASE_URL=jdbc:mysql://127.0.0.1:3306/
+          DATABASE_USER=root
+          DATABASE_PASSWORD=
+          MASTER_USER_TABLE=master_users
+          EOF
+
       - name: Build and run tests
         run: ./gradlew build --no-daemon
 
@@ -115,6 +128,17 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: gradle
+
+      - name: Create .env file
+        shell: bash
+        run: |
+          cat > app/.env <<'EOF'
+          DATABASE_NAME=YAPM_TEST2
+          DATABASE_BASE_URL=jdbc:mysql://127.0.0.1:3306/
+          DATABASE_USER=root
+          DATABASE_PASSWORD=
+          MASTER_USER_TABLE=master_users
+          EOF
 
       - name: Build and run tests
         run: .\gradlew.bat build --no-daemon
