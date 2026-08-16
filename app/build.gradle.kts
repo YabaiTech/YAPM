@@ -68,9 +68,13 @@ tasks.named<Test>("test") {
       )
     }
 
-    // SupabaseUtilsTest hits a real Supabase bucket and requires credentials plus
+    // The following tests hit a real Supabase bucket and require credentials plus
     // network access that aren't available on CI.
     if (System.getenv("CI") == "true") {
-      exclude("**/SupabaseUtilsTest*")
+      exclude(
+        "**/SupabaseUtilsTest*",
+        "**/RegisterUserTest*",
+        "**/LoginUserTest*",
+      )
     }
 }
